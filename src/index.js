@@ -1,3 +1,5 @@
+let _ = require('lodash')
+
 let hasOwnProp = Object.prototype.hasOwnProperty
 function has (obj, key) {
   return hasOwnProp.call(obj, key)
@@ -49,6 +51,161 @@ function cleanEvent (eventIn) {
   return event
 }
 
+function StateMachine () {
+  let start = _.uniqueId('state_')
+  let end = _.uniqueId('state_')
+  let transitions = []
+  let join = function (state1, state2) {
+    _.each(transitions, function (t) {
+      if (t[0] === state1) {
+        t[0] = state2
+      }
+      if (t[2] === state1) {
+        t[2] = state2
+      }
+    })
+  }
+  return {
+    start: start,
+    end: end,
+    add: function (fromState, onEvent, toState) {
+      transitions.push([fromState, onEvent, toState])
+    },
+    getTransitions: function () {
+      return transitions
+    },
+    concat: function (other) {
+      _.each(other.getTransitions(), function (t) {
+        transitions.push(_.cloneDeep(t))
+      })
+    },
+    join: join,
+    optimize: function () {
+      // Find all cases where the same event goes to different states and join those states into one
+      while (true) {
+        let toJoin = []
+        let groupped = {}
+        _.each(transitions, function (t) {
+          let key = t[0] + JSON.stringify(t[1])// stringify b/c ["not","expr_1"]
+          let state = t[2]
+          if (_.has(groupped, key)) {
+            if (state !== groupped[key]) {
+              toJoin.push([state, groupped[key]])
+            }
+          } else {
+            groupped[key] = state
+          }
+        })
+        if (toJoin.length === 0) {
+          break
+        }
+        toJoin.forEach(function (j) {
+          join(j[0], j[1])
+        })
+      }
+      // Remove duplicate transitions
+      let tree = {}
+      _.each(transitions, function (t) {
+        _.set(tree, [JSON.stringify(t[1]), t[0], t[2]], true)
+      })
+      transitions = []
+      _.each(tree, function (froms, onEvent) {
+        _.each(froms, function (tos, fromState) {
+          _.each(tos, function (bool, toState) {
+            transitions.push([fromState, JSON.parse(onEvent), toState])
+          })
+        })
+      })
+    },
+    compile: function () {
+      // we want to ensure we get the same output on every compile
+      // that is why we are re-naming states and sorting the output
+      let outStates = {}
+      outStates[start] = 'start'
+      outStates[end] = 'end'
+      let i = 0
+      let toOutState = function (state) {
+        if (_.has(outStates, state)) {
+          return outStates[state]
+        }
+        outStates[state] = 's' + (i++)
+        return outStates[state]
+      }
+      let outTransitions = _.sortBy(_.map(transitions, function (t) {
+        return [toOutState(t[0]), t[1], toOutState(t[2])]
+      }), function (t) {
+        let score = 0
+        if (t[0] === 'start') {
+          score -= Infinity
+        }
+        if (t[0] === 'end') {
+          score += Infinity
+        }
+        if (/^s[0-9]+$/.test(t[0])) {
+          score += _.parseInt(t[0].substring(1), 10) || 0
+        }
+        return score
+      })
+      let stm = {}
+      _.each(outTransitions, function (t) {
+        if (!_.has(stm, t[0])) {
+          stm[t[0]] = []
+        }
+        stm[t[0]].push([t[1], t[2]])
+      })
+      return stm
+    }
+  }
+}
+
+function e (dt, matcher) {
+  let domain
+  let name
+  let parts = dt.split(':')
+  if (parts.length > 1) {
+    domain = parts[0]
+    name = parts.slice(1).join(':')
+  } else {
+    domain = '*'
+    name = parts[0]
+  }
+
+  let salience = {}
+  salience[domain] = {}
+  salience[domain][name] = typeof matcher === 'function' ? matcher : true
+
+  return {
+    salience: salience,
+    stm: _.uniqueId('e')
+  }
+}
+
+function before (args) {
+  let s = StateMachine()
+
+  let prev
+  _.each(args, function (arg, j) {
+    // TODO let a = evalEELisp(arg)
+    let a = StateMachine()
+    a.add(a.start, arg, a.end)
+    // TODO more ops and .optimize()
+
+    s.concat(a)
+    if (j === 0) {
+      s.join(a.start, s.start)
+    }
+    if (j === _.size(args) - 1) {
+      s.join(a.end, s.end)
+    }
+    if (prev) {
+      s.join(prev.end, a.start)
+    }
+    prev = a
+  })
+
+  return s
+}
+
 function SelectWhen () {
   let whens = []
 
@@ -91,3 +248,7 @@ function SelectWhen () {
 
 module.exports = SelectWhen
 module.exports.cleanEvent = cleanEvent
+module.exports.ee = {
+  e,
+  before
+}

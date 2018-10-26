@@ -67,3 +67,33 @@ test('basics', function (t) {
     [{ domain: null, name: 'ee', data: null }, { n: 101 }]
   ])
 })
+
+test('e', function (t) {
+  let e = SelectWhen.ee.e
+
+  t.deepEqual(e('foo:bar').salience, { foo: { bar: true } })
+  t.deepEqual(e('foo').salience, { '*': { foo: true } })
+  t.deepEqual(e('foo:*').salience, { foo: { '*': true } })
+
+  let fn = function () {}
+  t.deepEqual(e('foo', fn).salience, { '*': { foo: fn } })
+})
+
+test('before', function (t) {
+  let e = SelectWhen.ee.e
+  let before = SelectWhen.ee.before
+
+  // select when foo before bar
+  let foo = e('foo')
+  let bar = e('bar')
+  let aaaaa = before([foo, bar])
+  aaaaa.optimize()
+  t.deepEqual(aaaaa.compile(), {
+    'start': [
+      [foo, 's0']
+    ],
+    's0': [
+      [bar, 'end']
+    ]
+  })
+})
