@@ -103,6 +103,15 @@ test('e', function (t) {
       [mkEE('foo'), 'end']
     ]
   })
+
+  let hub = SelectWhen()
+  let matches = 0
+  hub.when(e('aaa'), function (event, state) {
+    matches++
+  })
+  hub.emit('aaa')
+  hub.emit('bbb')
+  t.is(matches, 1)
 })
 
 test('before', function (t) {

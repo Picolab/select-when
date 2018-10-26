@@ -154,8 +154,65 @@ function StateMachine () {
         stm[t[0]].push([t[1], t[2]])
       })
       return stm
+    },
+    toMatcher: function () {
+      var stm = this.compile()
+      return function (event, state) {
+        var states = _.filter(_.flattenDeep([state && state.states]), function (st) {
+          return _.has(stm, st)
+        })
+        if (states.length === 0) {
+          states = ['start']
+        }
+        state = Object.assign({}, state, { states: states })
+
+        let matches = []
+        for (let cstate of state.states) {
+          let transitions = stm[cstate]
+          for (let transition of transitions) {
+            let expr = transition[0]
+            let stmState = transition[1]
+            let m = evalExpr(expr, event, state)
+            if (m.match === true) {
+              // found a match
+              if (matches.indexOf(stmState) < 0) {
+                matches.push(stmState)
+              }
+            }
+          }
+        }
+        if (_.includes(matches, 'end')) {
+          return {
+            match: true,
+            state: Object.assign({}, state, { states: ['end'] })
+          }
+        }
+        if (matches.length > 0) {
+          return {
+            match: true,
+            state: Object.assign({}, state, { states: matches })
+          }
+        }
+        return {
+          match: false,
+          state: state
+        }
+      }
     }
   }
+}
+
+function evalExpr (expr, event, state) {
+  if (expr.domain !== '*' && expr.domain !== event.domain) {
+    return { match: false, state }
+  }
+  if (expr.name !== '*' && expr.name !== event.name) {
+    return { match: false, state }
+  }
+  if (expr.matcher === true) {
+    return { match: true, state }
+  }
+  return expr.matcher(event, state)
 }
 
 function e (dt, matcher) {
@@ -200,6 +257,9 @@ function SelectWhen () {
   let whens = []
 
   function when (matcher, fn, initialState) {
+    if (typeof matcher.toMatcher === 'function') {
+      matcher = matcher.toMatcher()
+    }
     // TODO saliance graph
     let obj = {
       matcher,
