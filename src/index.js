@@ -170,39 +170,29 @@ function e (dt, matcher) {
     name = parts[0]
   }
 
-  let salience = {}
-  salience[domain] = {}
-  salience[domain][name] = typeof matcher === 'function' ? matcher : true
-
-  return {
-    salience: salience,
-    stm: _.uniqueId('e')
+  let eee = {
+    domain: domain,
+    name: name,
+    matcher: typeof matcher === 'function'
+      ? matcher
+      : true
   }
+  let s = StateMachine()
+  s.add(s.start, eee, s.end)
+  return s
 }
 
-function before (args) {
+function before (a, b) {
   let s = StateMachine()
 
-  let prev
-  _.each(args, function (arg, j) {
-    // TODO let a = evalEELisp(arg)
-    let a = StateMachine()
-    a.add(a.start, arg, a.end)
-    // TODO more ops and .optimize()
+  s.concat(a)
+  s.join(a.start, s.start)
 
-    s.concat(a)
-    if (j === 0) {
-      s.join(a.start, s.start)
-    }
-    if (j === _.size(args) - 1) {
-      s.join(a.end, s.end)
-    }
-    if (prev) {
-      s.join(prev.end, a.start)
-    }
-    prev = a
-  })
+  s.concat(b)
+  s.join(b.end, s.end)
+  s.join(a.end, b.start)
 
+  s.optimize()
   return s
 }
 

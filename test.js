@@ -68,15 +68,41 @@ test('basics', function (t) {
   ])
 })
 
+function mkEE (dt) {
+  return SelectWhen.ee.e(dt).getTransitions()[0][1]
+}
+
 test('e', function (t) {
   let e = SelectWhen.ee.e
 
-  t.deepEqual(e('foo:bar').salience, { foo: { bar: true } })
-  t.deepEqual(e('foo').salience, { '*': { foo: true } })
-  t.deepEqual(e('foo:*').salience, { foo: { '*': true } })
+  t.deepEqual(e('foo:bar').getTransitions()[0][1], {
+    domain: 'foo',
+    name: 'bar',
+    matcher: true
+  })
+  t.deepEqual(e('foo').getTransitions()[0][1], {
+    domain: '*',
+    name: 'foo',
+    matcher: true
+  })
+  t.deepEqual(e('foo:*').getTransitions()[0][1], {
+    domain: 'foo',
+    name: '*',
+    matcher: true
+  })
 
   let fn = function () {}
-  t.deepEqual(e('foo', fn).salience, { '*': { foo: fn } })
+  t.deepEqual(e('foo', fn).getTransitions()[0][1], {
+    domain: '*',
+    name: 'foo',
+    matcher: fn
+  })
+
+  t.deepEqual(e('foo').compile(), {
+    'start': [
+      [mkEE('foo'), 'end']
+    ]
+  })
 })
 
 test('before', function (t) {
@@ -84,16 +110,29 @@ test('before', function (t) {
   let before = SelectWhen.ee.before
 
   // select when foo before bar
-  let foo = e('foo')
-  let bar = e('bar')
-  let aaaaa = before([foo, bar])
-  aaaaa.optimize()
-  t.deepEqual(aaaaa.compile(), {
+  t.deepEqual(before(e('foo'), e('bar')).compile(), {
     'start': [
-      [foo, 's0']
+      [mkEE('foo'), 's0']
     ],
     's0': [
-      [bar, 'end']
+      [mkEE('bar'), 'end']
     ]
   })
+
+  // select when before(foo, bar, baz)
+  t.deepEqual(before(before(e('foo'), e('bar')), e('baz')).compile(), {
+    'start': [
+      [mkEE('foo'), 's0']
+    ],
+    's0': [
+      [mkEE('bar'), 's1']
+    ],
+    's1': [
+      [mkEE('baz'), 'end']
+    ]
+  })
+  t.deepEqual(
+    before(before(e('foo'), e('bar')), e('baz')).compile(),
+    before(e('foo'), before(e('bar'), e('baz'))).compile()
+  )
 })
