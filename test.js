@@ -1,3 +1,4 @@
+let _ = require('lodash')
 let test = require('ava')
 let SelectWhen = require('./')
 
@@ -12,17 +13,18 @@ test('clean event', function (t) {
   }
 
   t.is(tst(''), 'TypeError: event.name must be a string')
-  t.is(tst(' a '), { domain: null, name: 'a', data: null })
+  t.is(_.omit(tst(' a '), 'time'), { domain: null, name: 'a', data: null })
   t.is(tst({}), 'TypeError: event.name must be a string')
   t.is(tst({ domain: 1 }), 'TypeError: event.domain must be a string or null')
-  t.is(tst({ domain: ' foo ', name: ' bar ', extra: 'thing' }), {
+  t.is(tst({ domain: ' foo ', name: ' bar ', extra: 'thing', time: 123 }), {
     domain: 'foo',
     name: 'bar',
-    data: null
+    data: null,
+    time: 123
   })
 
   let event = SelectWhen.cleanEvent('a')
-  t.is(event, { domain: null, name: 'a', data: null })
+  t.is(_.omit(event, 'time'), { domain: null, name: 'a', data: null })
   t.true(Object.isFrozen(event))
   t.throws(function () {
     event.name = 'b'
@@ -30,7 +32,7 @@ test('clean event', function (t) {
   t.throws(function () {
     event.other = 2
   })
-  t.is(event, { domain: null, name: 'a', data: null })
+  t.is(_.omit(event, 'time'), { domain: null, name: 'a', data: null })
 })
 
 test('basics', function (t) {
@@ -48,7 +50,7 @@ test('basics', function (t) {
   }, function (event, state) {
     t.true(Object.isFrozen(event))
     t.true(Object.isFrozen(state))
-    matches.push([ event, state ])
+    matches.push([ _.omit(event, 'time'), state ])
   }, { n: 0 })
 
   hub.emit('aa')
@@ -182,4 +184,34 @@ test('before', function (t) {
   t.is(matches, 1)
   hub.emit('bar')
   t.is(matches, 2)
+})
+
+test('within', function (t) {
+  let e = SelectWhen.ee.e
+  let before = SelectWhen.ee.before
+  let within = SelectWhen.ee.within
+
+  let matcher = within(before(e('foo'), e('bar')), 100)
+
+  let r0 = matcher({ name: 'foo', time: 100 })
+  t.deepEqual(r0, {
+    match: false,
+    state: { starttime: 100, states: ['s0'] }
+  })
+  t.deepEqual(matcher({ name: 'bar', time: 110 }, r0.state), {
+    match: true,
+    state: { starttime: 100, states: ['end'] }
+  })
+  t.deepEqual(matcher({ name: 'bar', time: 201 }, r0.state), {
+    match: false,
+    state: { starttime: 201, states: ['start'] }
+  })
+
+  t.deepEqual(matcher({ name: 'foo', time: 133 }, { starttime: 123, states: ['start'] }), {
+    match: false,
+    state: {
+      starttime: 133, // Reset the time b/c it began at the 'start' state
+      states: ['s0']
+    }
+  })
 })

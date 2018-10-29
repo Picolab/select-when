@@ -47,6 +47,15 @@ function cleanEvent (eventIn) {
     event.data = null
   }
 
+  if (has(eventIn, 'time')) {
+    if (!_.isInteger(eventIn.time)) {
+      throw new TypeError('event.time must be milliseconds since the epoch.')
+    }
+    event.time = eventIn.time
+  } else {
+    event.time = Date.now()
+  }
+
   Object.freeze(event)
   return event
 }
@@ -254,6 +263,44 @@ function before (a, b) {
   return s
 }
 
+function within (matcher, timeLimit) {
+  if (typeof matcher.toMatcher === 'function') {
+    matcher = matcher.toMatcher()
+  }
+  let tlimitFn
+  if (_.isFinite(timeLimit)) {
+    tlimitFn = function () { return timeLimit }
+  } else if (_.isFunction(timeLimit)) {
+    tlimitFn = timeLimit
+  } else {
+    throw new TypeError('within timeLimit must be a number (ms) or a function that returns the limit.')
+  }
+
+  return function (event, state) {
+    let starttime = _.isInteger(state && state.starttime)
+      ? state.starttime
+      : event.time
+
+    let timeSinceLast = event.time - starttime
+    let tlimit = tlimitFn(event, state)
+
+    let stmStates = _.filter(_.flattenDeep([state && state.states]), _.isString)
+    if (timeSinceLast > tlimit) {
+      // time has expired, reset the state machine
+      stmStates = ['start']
+    }
+    if (_.includes(stmStates, 'start')) {
+      // set or reset the clock
+      starttime = event.time
+    }
+    state = Object.freeze(Object.assign({}, state, {
+      states: stmStates,
+      starttime: starttime
+    }))
+    return matcher(event, state)
+  }
+}
+
 function SelectWhen () {
   let whens = []
 
@@ -301,5 +348,6 @@ module.exports = SelectWhen
 module.exports.cleanEvent = cleanEvent
 module.exports.ee = {
   e,
-  before
+  before,
+  within
 }
