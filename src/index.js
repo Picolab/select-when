@@ -158,21 +158,22 @@ function StateMachine () {
     toMatcher: function () {
       var stm = this.compile()
       return function (event, state) {
-        var states = _.filter(_.flattenDeep([state && state.states]), function (st) {
+        let stmStates = _.filter(_.flattenDeep([state && state.states]), function (st) {
           return _.has(stm, st)
         })
-        if (states.length === 0) {
-          states = ['start']
+        if (stmStates.length === 0) {
+          stmStates = ['start']
         }
-        state = Object.assign({}, state, { states: states })
+        state = Object.assign({}, state, { states: stmStates })
 
         let matches = []
-        for (let cstate of state.states) {
+        for (let cstate of stmStates) {
           let transitions = stm[cstate]
           for (let transition of transitions) {
             let expr = transition[0]
             let stmState = transition[1]
             let m = evalExpr(expr, event, state)
+            state = m.state
             if (m.match === true) {
               // found a match
               if (matches.indexOf(stmState) < 0) {
@@ -189,7 +190,7 @@ function StateMachine () {
         }
         if (matches.length > 0) {
           return {
-            match: true,
+            match: false,
             state: Object.assign({}, state, { states: matches })
           }
         }

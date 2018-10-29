@@ -142,6 +142,44 @@ test('before', function (t) {
   })
   t.deepEqual(
     before(before(e('foo'), e('bar')), e('baz')).compile(),
-    before(e('foo'), before(e('bar'), e('baz'))).compile()
+    before(e('foo'), before(e('bar'), e('baz'))).compile(),
+    'asserting `before\'s associative property'
   )
+
+  let bm = before(e('foo'), e('bar')).toMatcher()
+  t.deepEqual(bm({ name: 'foo' }, {}), {
+    match: false,
+    state: { states: ['s0'] }
+  })
+  t.deepEqual(bm({ name: 'bar' }, {}), {
+    match: false,
+    state: { states: ['start'] }
+  })
+  t.deepEqual(bm({ name: 'bar' }, { states: ['s0'] }), {
+    match: true,
+    state: { states: ['end'] }
+  })
+  t.deepEqual(bm({ name: 'bar' }, { states: ['end'] }), bm({ name: 'bar' }))
+  t.deepEqual(bm({ name: 'bar' }, { states: ['wat', 'da'] }), bm({ name: 'bar' }))
+  t.deepEqual(bm({ name: 'bar' }, { states: ['wat', 's0', 'da'] }), bm({ name: 'bar' }, { states: ['s0'] }))
+
+  let hub = SelectWhen()
+  let matches = 0
+  hub.when(before(e('foo'), e('bar')), function (event, state) {
+    matches++
+  })
+  hub.emit('foo')
+  t.is(matches, 0)
+  hub.emit('baz')
+  t.is(matches, 0)
+  hub.emit('bar')
+  t.is(matches, 1)
+  hub.emit('bar')
+  t.is(matches, 1)
+  hub.emit('foo')
+  t.is(matches, 1)
+  hub.emit('foo')
+  t.is(matches, 1)
+  hub.emit('bar')
+  t.is(matches, 2)
 })
