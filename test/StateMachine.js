@@ -86,11 +86,11 @@ test('stm.optimize() merge states, but don\'t interfere with other paths.', func
   t.deepEqual(stm.compile(), {
     start: [
       ['aaa:aaa', 's0'],
+      ['aaa:aaa', 's1'], // leave this duplicate path b/c bbb:bbb is also using it
       ['bbb:bbb', 's1']
     ],
     s0: [
-      ['ccc:ccc', 'end'],
-      ['ddd:ddd', 'end']
+      ['ccc:ccc', 'end']
     ],
     s1: [
       ['ddd:ddd', 'end']

@@ -99,6 +99,19 @@ function StateMachine () {
     return events[lisp]
   }
 
+  function getStateInputSignature (state) {
+    let inputs = []
+    _.each(transitions, function (t) {
+      if (t[2] === state) {
+        let key = t[0] + t[1]
+        if (inputs.indexOf(key) < 0) {
+          inputs.push(key)
+        }
+      }
+    })
+    return inputs.sort().join('|')
+  }
+
   return {
     start: start,
     end: end,
@@ -108,12 +121,15 @@ function StateMachine () {
         return [t[0], getEvent(JSON.parse(t[1])), t[2]]
       })
     },
+
     concat: function (other) {
       _.each(other.getTransitions(), function (t) {
         add.apply(null, t)
       })
     },
+
     join: join,
+
     optimize: function () {
       // Find all cases where the same event goes to different states and join those states into one
       while (true) {
@@ -130,13 +146,20 @@ function StateMachine () {
             groupped[key] = state
           }
         })
-        if (toJoin.length === 0) {
+        let didJoinStuff = false
+        toJoin.forEach(function ([sA, sB]) {
+          // before joining, make sure they are not used by someone else
+          if (getStateInputSignature(sA) === getStateInputSignature(sB)) {
+            join(sA, sB)
+            didJoinStuff = true
+          }
+        })
+        if (!didJoinStuff) {
           break
         }
-        toJoin.forEach(function (j) {
-          join(j[0], j[1])
-        })
+        // run again to see if there are more duplicate states
       }
+
       // Remove duplicate transitions
       let tree = {}
       _.each(transitions, function (t) {
@@ -151,6 +174,7 @@ function StateMachine () {
         })
       })
     },
+
     compile: function () {
       // we want to ensure we get the same output on every compile
       // that is why we are re-naming states and sorting the output
@@ -189,6 +213,7 @@ function StateMachine () {
       })
       return stm
     },
+
     toMatcher: function () {
       let stm = this.compile()
       return function (event, state) {
