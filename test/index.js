@@ -23,6 +23,8 @@ test('basics', function (t) {
     matches.push([ _.omit(event, 'time'), state ])
   })
 
+  t.is(w0.id, 'w0')
+
   hub.emit('aa')
   hub.emit('bb:cc')
   hub.emit({ name: 'dd', data: { attr: 1 }, foo: 'bar' })

@@ -39,10 +39,8 @@ function before (a, b) {
   return s
 }
 
-function within (matcher, timeLimit) {
-  if (typeof matcher.toMatcher === 'function') {
-    matcher = matcher.toMatcher()
-  }
+function within (a, timeLimit) {
+  let { saliance, matcher } = a.toWhenConf()
   let tlimitFn
   if (_.isFinite(timeLimit)) {
     tlimitFn = function () { return timeLimit }
@@ -52,7 +50,7 @@ function within (matcher, timeLimit) {
     throw new TypeError('within timeLimit must be a number (ms) or a function that returns the limit.')
   }
 
-  return function (event, state) {
+  let withinMatcher = function (event, state) {
     let starttime = _.isInteger(state && state.starttime)
       ? state.starttime
       : event.time
@@ -75,6 +73,8 @@ function within (matcher, timeLimit) {
     }))
     return matcher(event, state)
   }
+
+  return { saliance, matcher: withinMatcher }
 }
 
 module.exports = {

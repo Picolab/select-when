@@ -7,18 +7,15 @@ test('e', function (t) {
 
   t.deepEqual(e('foo:bar').getTransitions()[0][1], {
     domain: 'foo',
-    name: 'bar',
-    matcher: true
+    name: 'bar'
   })
   t.deepEqual(e('foo').getTransitions()[0][1], {
     domain: '*',
-    name: 'foo',
-    matcher: true
+    name: 'foo'
   })
   t.deepEqual(e('foo:*').getTransitions()[0][1], {
     domain: 'foo',
-    name: '*',
-    matcher: true
+    name: '*'
   })
 
   let fn = function () {}
@@ -75,7 +72,7 @@ test('before', function (t) {
     'asserting `before\'s associative property'
   )
 
-  let bm = before(e('foo'), e('bar')).toMatcher()
+  let bm = before(e('foo'), e('bar')).toWhenConf().matcher
   t.deepEqual(bm({ name: 'foo' }, {}), {
     match: false,
     state: { states: ['s0'] }
@@ -116,7 +113,7 @@ test('before', function (t) {
 test('within', function (t) {
   let { e, before, within } = ee
 
-  let matcher = within(before(e('foo'), e('bar')), 100)
+  let matcher = within(before(e('foo'), e('bar')), 100).matcher
 
   let r0 = matcher({ name: 'foo', time: 100 })
   t.deepEqual(r0, {

@@ -1,9 +1,29 @@
+let _ = require('lodash')
 let test = require('ava')
 let StateMachine = require('../src/StateMachine')
 
 function mkE (name) {
   return { domain: name, name: name, matcher: true }
 }
+
+test('stm.toWhenConf()', function (t) {
+  let stm = StateMachine()
+
+  stm.add(stm.start, { name: 'foo', blah: 'extra' }, stm.end)
+  stm.add(stm.start, { domain: 'bar', matcher: true }, stm.end)
+  stm.add(stm.start, { domain: 'baz', name: 'qux', matcher: function () {} }, stm.end)
+
+  let conf = stm.toWhenConf()
+
+  t.deepEqual(_.keys(conf), ['saliance', 'matcher'])
+  t.true(_.isFunction(conf.matcher))
+  t.true(_.isArray(conf.saliance))
+  t.deepEqual(conf.saliance, [
+    { domain: '*', name: 'foo' },
+    { domain: 'bar', name: '*' },
+    { domain: 'baz', name: 'qux' }
+  ])
+})
 
 test('stm.optimize() remove duplicate transitions', function (t) {
   let stm = StateMachine()

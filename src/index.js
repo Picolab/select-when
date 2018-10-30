@@ -28,8 +28,8 @@ function SelectWhen () {
   let nextWhenI = 0
 
   function when (conf, fn) {
-    if (typeof conf.toMatcher === 'function') { // i.e. StateMachine method
-      conf = conf.toMatcher()
+    if (typeof conf.toWhenConf === 'function') { // i.e. StateMachine method
+      conf = conf.toWhenConf()
     }
     let matcher = noopMatcher
     if (typeof conf.matcher === 'function') {
