@@ -116,6 +116,7 @@ function StateMachine () {
     start: start,
     end: end,
     add: add,
+    getEvent: getEvent,
     getTransitions: function () {
       return transitions.map(function (t) {
         return [t[0], getEvent(JSON.parse(t[1])), t[2]]
