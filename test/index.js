@@ -85,28 +85,108 @@ test('saliance graph', async function (t) {
 test('async matcher', async function (t) {
   let rs = SelectWhen()
 
+  let preMatch = []
   let matches = []
 
   rs.when({
     initialState: { n: 0 },
     matcher: async function (event, state) {
-      await sleep(10)
+      preMatch.push(event.name + '-' + state.n)
+      await sleep(1)
       return {
         match: true,
         state: { n: state.n + 1 }
       }
     }
   }, function (event, state) {
-    matches.push([ event.name, state.n ])
+    matches.push(event.name + '-' + state.n)
   })
 
   rs.send('foo')
   rs.send('bar')
   await rs.send('baz')
 
-  t.deepEqual(matches, [
-    ['foo', 1],
-    ['bar', 2],
-    ['baz', 3]
+  t.deepEqual(preMatch, ['foo-0', 'bar-1', 'baz-2'])
+  t.deepEqual(matches, ['foo-1', 'bar-2', 'baz-3'])
+})
+
+test('async matcher per rule', async function (t) {
+  let rs = SelectWhen()
+
+  let events = []
+
+  rs.when(async function (event, state) {
+    events.push('pre0-' + event.name)
+    await sleep(10)
+    events.push('pst0-' + event.name)
+    return { match: true, state }
+  }, function (event, state) {
+    events.push('run0-' + event.name)
+  })
+  rs.when(async function (event, state) {
+    events.push('pre1-' + event.name)
+    await sleep(1)
+    events.push('pst1-' + event.name)
+    return { match: true, state }
+  }, function (event, state) {
+    events.push('run1-' + event.name)
+  })
+
+  await rs.send('aaa')
+  await rs.send('bbb')
+  await rs.send('ccc')
+
+  t.deepEqual(events, [
+    // rules run in order until completion
+    'pre0-aaa',
+    'pst0-aaa',
+    'run0-aaa',
+    'pre1-aaa',
+    'pst1-aaa',
+    'run1-aaa',
+
+    'pre0-bbb',
+    'pst0-bbb',
+    'run0-bbb',
+    'pre1-bbb',
+    'pst1-bbb',
+    'run1-bbb',
+
+    'pre0-ccc',
+    'pst0-ccc',
+    'run0-ccc',
+    'pre1-ccc',
+    'pst1-ccc',
+    'run1-ccc'
+  ])
+
+  events = []
+  rs.send('aaa')
+  rs.send('bbb')
+  let p = rs.send('ccc')
+
+  t.deepEqual(events, ['pre0-aaa'], 'nothing else here since it\'s async')
+  await p
+  t.deepEqual(events, [
+    'pre0-aaa',
+    'pst0-aaa',
+    'run0-aaa',
+    'pre1-aaa',
+    'pst1-aaa',
+    'run1-aaa',
+
+    'pre0-bbb',
+    'pst0-bbb',
+    'run0-bbb',
+    'pre1-bbb',
+    'pst1-bbb',
+    'run1-bbb',
+
+    'pre0-ccc',
+    'pst0-ccc',
+    'run0-ccc',
+    'pre1-ccc',
+    'pst1-ccc',
+    'run1-ccc'
   ])
 })
