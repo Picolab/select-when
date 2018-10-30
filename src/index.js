@@ -9,7 +9,7 @@ function noopMatcher (event, state) {
 }
 
 function SelectWhen () {
-  let whens = []
+  let rules = {}
 
   let salianceGraph = {}
 
@@ -50,22 +50,58 @@ function SelectWhen () {
 
     let state = Object.freeze(conf.initialState || {})
 
-    let obj = { id, matcher, fn, state }
+    let rule = {
+      id,
+      fn,
+      state
+    }
+    let queue = []
+    function dequeue () {
+      queue.shift()
+      if (queue.length > 0) {
+        queue[0]()
+      }
+    }
+    rule.select = function (event) {
+      let callback
+      let p = new Promise(function (resolve, reject) {
+        callback = function (err, data) {
+          err ? reject(err) : resolve(data)
+          dequeue()
+        }
+      })
+      function runIt () {
+        return Promise.resolve(matcher(event, rule.state))
+          .then(function (resp) {
+            rule.state = Object.freeze(resp.state)
+            let isMatch = resp.match === true
+            callback(null, isMatch)
+            return resp.match === true
+          }, function (err) {
+            callback(err)
+          })
+      }
+      queue.push(runIt)
+      if (queue.length === 1) {
+        queue[0]()
+      }
+      return p
+    }
 
-    whens[id] = obj
+    rules[rule.id] = rule
 
     return {
       id,
       setState: function (state) {
-        obj.state = Object.freeze(state)
+        rule.state = Object.freeze(state)
       },
       getState: function (state) {
-        return obj.state
+        return rule.state
       }
     }
   }
 
-  function emit (event) {
+  function send (event) {
     event = cleanEvent(event)
 
     let salient = _.uniq(_.get(salianceGraph, [event.domain, event.name], [])
@@ -73,19 +109,20 @@ function SelectWhen () {
       .concat(_.get(salianceGraph, ['*', event.name], []))
       .concat(_.get(salianceGraph, ['*', '*'], [])))
 
-    salient.forEach(function (id) {
-      let when = whens[id]
-      let resp = when.matcher(event, when.state)
-      when.state = Object.freeze(resp.state)
-      if (resp.match === true) {
-        when.fn(event, when.state)
-      }
-    })
+    return Promise.all(salient.map(function (id) {
+      let rule = rules[id]
+      return rule.select(event)
+        .then(function (isMatch) {
+          if (isMatch) {
+            rule.fn(event, rule.state)
+          }
+        })
+    }))
   }
 
   return {
     when: when,
-    emit: emit
+    send: send
   }
 }
 

@@ -2,7 +2,7 @@ let test = require('ava')
 let ee = require('../src/expressions')
 let SelectWhen = require('../')
 
-test('e', function (t) {
+test('e', async function (t) {
   let { e } = ee
 
   t.deepEqual(e('foo:bar').getTransitions()[0][1], {
@@ -31,17 +31,17 @@ test('e', function (t) {
     ]
   })
 
-  let hub = SelectWhen()
+  let rs = SelectWhen()
   let matches = 0
-  hub.when(e('aaa'), function (event, state) {
+  rs.when(e('aaa'), function (event, state) {
     matches++
   })
-  hub.emit('aaa')
-  hub.emit('bbb')
+  rs.send('aaa')
+  await rs.send('bbb')
   t.is(matches, 1)
 })
 
-test('before', function (t) {
+test('before', async function (t) {
   let { e, before } = ee
 
   // select when foo before bar
@@ -89,24 +89,24 @@ test('before', function (t) {
   t.deepEqual(bm({ name: 'bar' }, { states: ['wat', 'da'] }), bm({ name: 'bar' }))
   t.deepEqual(bm({ name: 'bar' }, { states: ['wat', 's0', 'da'] }), bm({ name: 'bar' }, { states: ['s0'] }))
 
-  let hub = SelectWhen()
+  let rs = SelectWhen()
   let matches = 0
-  hub.when(before(e('foo'), e('bar')), function (event, state) {
+  rs.when(before(e('foo'), e('bar')), function (event, state) {
     matches++
   })
-  hub.emit('foo')
+  await rs.send('foo')
   t.is(matches, 0)
-  hub.emit('baz')
+  await rs.send('baz')
   t.is(matches, 0)
-  hub.emit('bar')
+  await rs.send('bar')
   t.is(matches, 1)
-  hub.emit('bar')
+  await rs.send('bar')
   t.is(matches, 1)
-  hub.emit('foo')
+  await rs.send('foo')
   t.is(matches, 1)
-  hub.emit('foo')
+  await rs.send('foo')
   t.is(matches, 1)
-  hub.emit('bar')
+  await rs.send('bar')
   t.is(matches, 2)
 })
 

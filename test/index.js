@@ -2,12 +2,18 @@ let _ = require('lodash')
 let test = require('ava')
 let SelectWhen = require('../')
 
-test('basics', function (t) {
-  let hub = SelectWhen()
+function sleep (ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms)
+  })
+}
+
+test('basics', async function (t) {
+  let rs = SelectWhen()
 
   let matches = []
 
-  let w0 = hub.when({
+  let w0 = rs.when({
     initialState: { n: 0 },
     matcher: function (event, state) {
       t.true(Object.isFrozen(event))
@@ -25,14 +31,14 @@ test('basics', function (t) {
 
   t.is(w0.id, 'w0')
 
-  hub.emit('aa')
-  hub.emit('bb:cc')
-  hub.emit({ name: 'dd', data: { attr: 1 }, foo: 'bar' })
+  await rs.send('aa')
+  await rs.send('bb:cc')
+  await rs.send({ name: 'dd', data: { attr: 1 }, foo: 'bar' })
 
   t.deepEqual(w0.getState(), { n: 3 })
 
   w0.setState({ n: 100 })
-  hub.emit('ee')
+  await rs.send('ee')
 
   t.deepEqual(matches, [
     [{ domain: null, name: 'aa', data: null }, { n: 1 }],
@@ -42,13 +48,13 @@ test('basics', function (t) {
   ])
 })
 
-test('saliance graph', function (t) {
-  let hub = SelectWhen()
+test('saliance graph', async function (t) {
+  let rs = SelectWhen()
 
   let askedToMatch = []
   let matches = []
 
-  hub.when({
+  rs.when({
     saliance: [
       { domain: 'foo', name: 'foo' },
       { domain: 'bar', name: '*' }
@@ -61,11 +67,11 @@ test('saliance graph', function (t) {
     matches.push(event.domain + ':' + event.name)
   })
 
-  hub.emit('foo:foo')
-  hub.emit('foo:bar')
-  hub.emit('bar:bar')
-  hub.emit('wat:bar')
-  hub.emit('bar:wat')
+  rs.send('foo:foo')
+  rs.send('foo:bar')
+  rs.send('bar:bar')
+  rs.send('wat:bar')
+  await rs.send('bar:wat')
 
   // should only be askedToMatch the ones that are salient
   t.deepEqual(askedToMatch, [
@@ -74,4 +80,33 @@ test('saliance graph', function (t) {
     'bar:wat'
   ])
   t.deepEqual(askedToMatch, matches)
+})
+
+test('async matcher', async function (t) {
+  let rs = SelectWhen()
+
+  let matches = []
+
+  rs.when({
+    initialState: { n: 0 },
+    matcher: async function (event, state) {
+      await sleep(10)
+      return {
+        match: true,
+        state: { n: state.n + 1 }
+      }
+    }
+  }, function (event, state) {
+    matches.push([ event.name, state.n ])
+  })
+
+  rs.send('foo')
+  rs.send('bar')
+  await rs.send('baz')
+
+  t.deepEqual(matches, [
+    ['foo', 1],
+    ['bar', 2],
+    ['baz', 3]
+  ])
 })
