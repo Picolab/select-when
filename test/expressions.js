@@ -2,10 +2,6 @@ let test = require('ava')
 let ee = require('../src/expressions')
 let SelectWhen = require('../')
 
-function mkEE (dt) {
-  return ee.e(dt).getTransitions()[0][1]
-}
-
 test('e', function (t) {
   let { e } = ee
 
@@ -34,7 +30,7 @@ test('e', function (t) {
 
   t.deepEqual(e('foo').compile(), {
     'start': [
-      [mkEE('foo'), 'end']
+      ['*:foo', 'end']
     ]
   })
 
@@ -54,23 +50,23 @@ test('before', function (t) {
   // select when foo before bar
   t.deepEqual(before(e('foo'), e('bar')).compile(), {
     'start': [
-      [mkEE('foo'), 's0']
+      ['*:foo', 's0']
     ],
     's0': [
-      [mkEE('bar'), 'end']
+      ['*:bar', 'end']
     ]
   })
 
   // select when before(foo, bar, baz)
   t.deepEqual(before(before(e('foo'), e('bar')), e('baz')).compile(), {
     'start': [
-      [mkEE('foo'), 's0']
+      ['*:foo', 's0']
     ],
     's0': [
-      [mkEE('bar'), 's1']
+      ['*:bar', 's1']
     ],
     's1': [
-      [mkEE('baz'), 'end']
+      ['*:baz', 'end']
     ]
   })
   t.deepEqual(

@@ -14,16 +14,16 @@ test('stm.optimize() remove duplicate transitions', function (t) {
 
   t.deepEqual(stm.compile(), {
     start: [
-      [{ domain: 'aaa', name: 'aaa', matcher: true }, 'end'],
-      [{ domain: 'bbb', name: 'bbb', matcher: true }, 'end'],
-      [{ domain: 'aaa', name: 'aaa', matcher: true }, 'end']
+      ['aaa:aaa', 'end'],
+      ['bbb:bbb', 'end'],
+      ['aaa:aaa', 'end']
     ]
   })
   stm.optimize()
   t.deepEqual(stm.compile(), {
     start: [
-      [{ domain: 'aaa', name: 'aaa', matcher: true }, 'end'],
-      [{ domain: 'bbb', name: 'bbb', matcher: true }, 'end']
+      ['aaa:aaa', 'end'],
+      ['bbb:bbb', 'end']
     ]
   })
 })
@@ -38,34 +38,30 @@ test('stm.optimize() merge states', function (t) {
 
   t.deepEqual(stm.compile(), {
     start: [
-      [mkE('aaa'), 's0'],
-      [mkE('aaa'), 's1']
+      ['aaa:aaa', 's0'],
+      ['aaa:aaa', 's1']
     ],
     s0: [
-      [mkE('ccc'), 'end']
+      ['ccc:ccc', 'end']
     ],
     s1: [
-      [mkE('ddd'), 'end']
+      ['ddd:ddd', 'end']
     ]
   })
   stm.optimize()
   t.deepEqual(stm.compile(), {
     start: [
-      [mkE('aaa'), 's0']
+      ['aaa:aaa', 's0']
     ],
     s0: [
-      [mkE('ccc'), 'end'],
-      [mkE('ddd'), 'end']
+      ['ccc:ccc', 'end'],
+      ['ddd:ddd', 'end']
     ]
   })
 })
 
-test.skip('stm.optimize() merge states, but don\'t interfere with other paths.', function (t) {
+test('stm.optimize() merge states, but don\'t interfere with other paths.', function (t) {
   let stm = StateMachine()
-
-  function mkE (name) {
-    return { domain: name, name: name, matcher: true }
-  }
 
   stm.add(stm.start, mkE('aaa'), 'state0')
   stm.add(stm.start, mkE('aaa'), 'state1')
@@ -75,29 +71,29 @@ test.skip('stm.optimize() merge states, but don\'t interfere with other paths.',
 
   t.deepEqual(stm.compile(), {
     start: [
-      [mkE('aaa'), 's0'],
-      [mkE('aaa'), 's1'],
-      [mkE('bbb'), 's1']
+      ['aaa:aaa', 's0'],
+      ['aaa:aaa', 's1'],
+      ['bbb:bbb', 's1']
     ],
     s0: [
-      [mkE('ccc'), 'end']
+      ['ccc:ccc', 'end']
     ],
     s1: [
-      [mkE('ddd'), 'end']
+      ['ddd:ddd', 'end']
     ]
   })
   stm.optimize()
   t.deepEqual(stm.compile(), {
     start: [
-      [mkE('aaa'), 's0'],
-      [mkE('bbb'), 's1']
+      ['aaa:aaa', 's0'],
+      ['bbb:bbb', 's1']
     ],
     s0: [
-      [mkE('ccc'), 'end'],
-      [mkE('ddd'), 'end']
+      ['ccc:ccc', 'end'],
+      ['ddd:ddd', 'end']
     ],
     s1: [
-      [mkE('ddd'), 'end']
+      ['ddd:ddd', 'end']
     ]
   })
 })

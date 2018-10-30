@@ -4,7 +4,8 @@ function StateMachine () {
   let start = _.uniqueId('state_')
   let end = _.uniqueId('state_')
   let transitions = []
-  let join = function (state1, state2) {
+
+  function join (state1, state2) {
     _.each(transitions, function (t) {
       if (t[0] === state1) {
         t[0] = state2
@@ -14,18 +15,102 @@ function StateMachine () {
       }
     })
   }
+
+  let events = {}
+  let efns = []
+  function addEvent (e) {
+    if (_.isArray(e)) {
+      switch (e[0]) {
+        case 'not':
+          if (e.length !== 2) {
+            throw new Error('Bad event state transition')
+          }
+          return ['not', addEvent(e[1])]
+        case 'or':
+        case 'and':
+          if (e.length !== 3) {
+            throw new Error('Bad event state transition')
+          }
+          return [e[0], addEvent(e[1]), addEvent(e[2])]
+        default:
+          throw new Error('Bad event state transition')
+      }
+    }
+    let key = [e.domain || '*', e.name || '*'].join(':')
+    if (_.isFunction(e.matcher)) {
+      let i = efns.indexOf(e.matcher)
+      if (i < 0) {
+        i = efns.length
+        efns.push(e.matcher)
+      }
+      key += ':fn' + i
+    }
+    events[key] = e
+    return key
+  }
+
+  function evalExpr (expr, event, state) {
+    if (_.isArray(expr)) {
+      let m1 = evalExpr(expr[1], event, state)
+      switch (expr[0]) {
+        case 'not':
+          return { match: !m1.match, state: m1.state }
+        case 'or':
+          return m1.match
+            ? m1
+            : evalExpr(expr[2], event, m1.state)
+        case 'and':
+          return m1.match
+            ? evalExpr(expr[2], event, m1.state)
+            : { match: false, state: m1.state }
+        default:
+          throw new Error('Bad event state transition')
+      }
+    }
+    expr = events[expr]
+    if (expr.domain !== '*' && expr.domain !== event.domain) {
+      return { match: false, state }
+    }
+    if (expr.name !== '*' && expr.name !== event.name) {
+      return { match: false, state }
+    }
+    if (expr.matcher === true) {
+      return { match: true, state }
+    }
+    return expr.matcher(event, state)
+  }
+
+  function add (fromState, onEvent, toState) {
+    transitions.push([fromState, JSON.stringify(addEvent(onEvent)), toState])
+  }
+
+  function getEvent (lisp) {
+    if (_.isArray(lisp)) {
+      switch (lisp[0]) {
+        case 'not':
+          return ['not', getEvent(lisp[1])]
+        case 'or':
+        case 'and':
+          return [lisp[0], getEvent(lisp[1]), getEvent(lisp[2])]
+        default:
+          throw new Error('Bad event state transition')
+      }
+    }
+    return events[lisp]
+  }
+
   return {
     start: start,
     end: end,
-    add: function (fromState, onEvent, toState) {
-      transitions.push([fromState, onEvent, toState])
-    },
+    add: add,
     getTransitions: function () {
-      return transitions
+      return transitions.map(function (t) {
+        return [t[0], getEvent(JSON.parse(t[1])), t[2]]
+      })
     },
     concat: function (other) {
       _.each(other.getTransitions(), function (t) {
-        transitions.push(_.cloneDeep(t))
+        add.apply(null, t)
       })
     },
     join: join,
@@ -35,7 +120,7 @@ function StateMachine () {
         let toJoin = []
         let groupped = {}
         _.each(transitions, function (t) {
-          let key = t[0] + JSON.stringify(t[1])// stringify b/c ["not","expr_1"]
+          let key = t[0] + t[1]
           let state = t[2]
           if (_.has(groupped, key)) {
             if (state !== groupped[key]) {
@@ -55,13 +140,13 @@ function StateMachine () {
       // Remove duplicate transitions
       let tree = {}
       _.each(transitions, function (t) {
-        _.set(tree, [JSON.stringify(t[1]), t[0], t[2]], true)
+        _.set(tree, [t[1], t[0], t[2]], true)
       })
       transitions = []
       _.each(tree, function (froms, onEvent) {
         _.each(froms, function (tos, fromState) {
           _.each(tos, function (bool, toState) {
-            transitions.push([fromState, JSON.parse(onEvent), toState])
+            transitions.push([fromState, onEvent, toState])
           })
         })
       })
@@ -100,12 +185,12 @@ function StateMachine () {
         if (!_.has(stm, t[0])) {
           stm[t[0]] = []
         }
-        stm[t[0]].push([t[1], t[2]])
+        stm[t[0]].push([JSON.parse(t[1]), t[2]])
       })
       return stm
     },
     toMatcher: function () {
-      var stm = this.compile()
+      let stm = this.compile()
       return function (event, state) {
         let stmStates = _.filter(_.flattenDeep([state && state.states]), function (st) {
           return _.has(stm, st)
@@ -150,19 +235,6 @@ function StateMachine () {
       }
     }
   }
-}
-
-function evalExpr (expr, event, state) {
-  if (expr.domain !== '*' && expr.domain !== event.domain) {
-    return { match: false, state }
-  }
-  if (expr.name !== '*' && expr.name !== event.name) {
-    return { match: false, state }
-  }
-  if (expr.matcher === true) {
-    return { match: true, state }
-  }
-  return expr.matcher(event, state)
 }
 
 module.exports = StateMachine
