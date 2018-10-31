@@ -1,8 +1,12 @@
 let _ = require('lodash')
 
+function genState () {
+  return _.uniqueId('s')
+}
+
 function StateMachine () {
-  let start = _.uniqueId('state_')
-  let end = _.uniqueId('state_')
+  let start = genState()
+  let end = genState()
   let transitions = []
 
   function join (state1, state2) {
@@ -198,12 +202,34 @@ function StateMachine () {
     }
   }
 
+  function clone () {
+    let stm = StateMachine()
+    let stateMap = {}
+    stateMap[start] = stm.start
+    stateMap[end] = stm.end
+    function newState (s) {
+      if (!_.has(stateMap, s)) {
+        stateMap[s] = genState()
+      }
+      return stateMap[s]
+    }
+    transitions.forEach(function (t) {
+      stm.add(
+        newState(t[0]),
+        getEvent(JSON.parse(t[1])),
+        newState(t[2])
+      )
+    })
+    return stm
+  }
+
   return {
     start,
     end,
     add,
     getEvent,
     getTransitions,
+    clone,
     concat,
     join,
     optimize,

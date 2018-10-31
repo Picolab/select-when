@@ -25,6 +25,43 @@ function e (dt, matcher) {
   return s
 }
 
+function or (a, b) {
+  let s = StateMachine()
+
+  s.concat(a)
+  s.concat(b)
+  s.join(a.start, s.start)
+  s.join(b.start, s.start)
+  s.join(a.end, s.end)
+  s.join(b.end, s.end)
+
+  s.optimize()
+  return s
+}
+
+function and (a0, b0) {
+  let s = StateMachine()
+
+  let a1 = a0.clone()
+  let b1 = b0.clone()
+  s.concat(a0)
+  s.concat(b0)
+  s.concat(a1)
+  s.concat(b1)
+
+  s.join(a0.start, s.start)
+  s.join(b0.start, s.start)
+
+  s.join(a0.end, b1.start)
+  s.join(b0.end, a1.start)
+
+  s.join(a1.end, s.end)
+  s.join(b1.end, s.end)
+
+  s.optimize()
+  return s
+}
+
 function before (a, b) {
   let s = StateMachine()
 
@@ -79,6 +116,8 @@ function within (a, timeLimit) {
 
 module.exports = {
   e,
+  or,
+  and,
   before,
   within
 }

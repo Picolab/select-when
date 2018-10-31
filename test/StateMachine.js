@@ -159,3 +159,32 @@ test('StateMachine unique events and matcher function management', function (t) 
   t.is(stm.getEvent('*:aaa:fn2').matcher, fn2)
   t.is(stm.getEvent('*:wat:fn1').matcher, fn1)
 })
+
+test('StateMachine clone()', function (t) {
+  let stm = StateMachine()
+  stm.add(stm.start, { name: 'foo' }, 'aaa')
+  stm.add('aaa', { name: 'bar' }, 'bbb')
+  stm.add('aaa', { name: 'baz' }, 'ccc')
+  stm.add('bbb', { name: 'qux' }, stm.end)
+  stm.add('ccc', { name: 'quux' }, stm.end)
+
+  t.deepEqual(stm.getTransitions(), [
+    [stm.start, { domain: '*', name: 'foo' }, 'aaa'],
+    ['aaa', { domain: '*', name: 'bar' }, 'bbb'],
+    ['aaa', { domain: '*', name: 'baz' }, 'ccc'],
+    ['bbb', { domain: '*', name: 'qux' }, stm.end],
+    ['ccc', { domain: '*', name: 'quux' }, stm.end]
+  ])
+
+  let stm2 = stm.clone()
+  let trans = stm2.getTransitions()
+  t.is(trans[0][0], stm2.start)
+  t.deepEqual(trans[0][1], { domain: '*', name: 'foo' })
+  t.deepEqual(trans[1][1], { domain: '*', name: 'bar' })
+  t.is(trans[0][2], trans[1][0])
+  t.not(trans[0][2], 'aaa')
+  t.is(trans[2][2], trans[4][0])
+  t.is(trans[4][2], stm2.end)
+  t.not(stm.start, stm2.start)
+  t.not(stm.end, stm2.end)
+})

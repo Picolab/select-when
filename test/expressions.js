@@ -137,3 +137,35 @@ test('within', function (t) {
     }
   })
 })
+
+test('or', function (t) {
+  let { e, or } = ee
+
+  let stm = or(e('foo'), e('bar'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:foo', 'end'],
+      ['*:bar', 'end']
+    ]
+  })
+})
+
+test('and', function (t) {
+  let { e, and } = ee
+
+  let stm = and(e('aaa'), e('bbb'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:aaa', 's0'],
+      ['*:bbb', 's1']
+    ],
+    's0': [
+      ['*:bbb', 'end']
+    ],
+    's1': [
+      ['*:aaa', 'end']
+    ]
+  })
+})
