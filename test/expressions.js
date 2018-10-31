@@ -169,3 +169,68 @@ test('and', function (t) {
     ]
   })
 })
+
+test('then', function (t) {
+  let { e, then } = ee
+
+  let stm = then(e('aaa'), e('bbb'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:aaa', 's0']
+    ],
+    's0': [
+      ['*:bbb', 'end'],
+      [['not', '*:bbb'], 'start']
+    ]
+  })
+})
+
+test('after', function (t) {
+  let { e, after } = ee
+
+  let stm = after(e('aaa'), e('bbb'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:bbb', 's0']
+    ],
+    's0': [
+      ['*:aaa', 'end']
+    ]
+  })
+})
+
+test('between', function (t) {
+  let { e, between } = ee
+
+  let stm = between(e('aaa'), e('bbb'), e('ccc'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:bbb', 's0']
+    ],
+    's0': [
+      ['*:aaa', 's1']
+    ],
+    's1': [
+      ['*:ccc', 'end']
+    ]
+  })
+})
+
+test('notBetween', function (t) {
+  let { e, notBetween } = ee
+
+  let stm = notBetween(e('aaa'), e('bbb'), e('ccc'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:bbb', 's0']
+    ],
+    's0': [
+      ['*:aaa', 'start'],
+      ['*:ccc', 'end']
+    ]
+  })
+})
