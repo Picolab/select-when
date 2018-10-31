@@ -110,34 +110,6 @@ test('before', async function (t) {
   t.is(matches, 2)
 })
 
-test('within', function (t) {
-  let { e, before, within } = ee
-
-  let matcher = within(before(e('foo'), e('bar')), 100).matcher
-
-  let r0 = matcher({ name: 'foo', time: 100 })
-  t.deepEqual(r0, {
-    match: false,
-    state: { starttime: 100, states: ['s0'] }
-  })
-  t.deepEqual(matcher({ name: 'bar', time: 110 }, r0.state), {
-    match: true,
-    state: { starttime: 100, states: ['end'] }
-  })
-  t.deepEqual(matcher({ name: 'bar', time: 201 }, r0.state), {
-    match: false,
-    state: { starttime: 201, states: ['start'] }
-  })
-
-  t.deepEqual(matcher({ name: 'foo', time: 133 }, { starttime: 123, states: ['start'] }), {
-    match: false,
-    state: {
-      starttime: 133, // Reset the time b/c it began at the 'start' state
-      states: ['s0']
-    }
-  })
-})
-
 test('or', function (t) {
   let { e, or } = ee
 
@@ -232,5 +204,108 @@ test('notBetween', function (t) {
       ['*:aaa', 'start'],
       ['*:ccc', 'end']
     ]
+  })
+})
+
+test('any', function (t) {
+  let { e, any } = ee
+
+  let stm = any(2, e('aaa'), e('bbb'), e('ccc'), e('ddd'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:aaa', 's0'],
+      ['*:bbb', 's1'],
+      ['*:ccc', 's2'],
+      ['*:ddd', 's3']
+    ],
+    's0': [
+      ['*:bbb', 'end'],
+      ['*:ccc', 'end'],
+      ['*:ddd', 'end']
+    ],
+    's1': [
+      ['*:aaa', 'end'],
+      ['*:ccc', 'end'],
+      ['*:ddd', 'end']
+    ],
+    's2': [
+      ['*:aaa', 'end'],
+      ['*:bbb', 'end'],
+      ['*:ddd', 'end']
+    ],
+    's3': [
+      ['*:aaa', 'end'],
+      ['*:bbb', 'end'],
+      ['*:ccc', 'end']
+    ]
+  })
+})
+
+test('count', function (t) {
+  let { e, count } = ee
+
+  let stm = count(3, e('aaa'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:aaa', 's0']
+    ],
+    's0': [
+      ['*:aaa', 's1']
+    ],
+    's1': [
+      ['*:aaa', 'end']
+    ]
+  })
+})
+
+test('repeat', function (t) {
+  let { e, repeat } = ee
+
+  let stm = repeat(3, e('aaa'))
+
+  t.deepEqual(stm.compile(), {
+    'start': [
+      ['*:aaa', 's0']
+    ],
+    's0': [
+      ['*:aaa', 's1']
+    ],
+    's1': [
+      ['*:aaa', 'end']
+    ],
+    'end': [
+      ['*:aaa', 'end']
+    ]
+  })
+  // TODO test that the end state loop works as expected
+})
+
+test('within', function (t) {
+  let { e, before, within } = ee
+
+  let matcher = within(before(e('foo'), e('bar')), 100).matcher
+
+  let r0 = matcher({ name: 'foo', time: 100 })
+  t.deepEqual(r0, {
+    match: false,
+    state: { starttime: 100, states: ['s0'] }
+  })
+  t.deepEqual(matcher({ name: 'bar', time: 110 }, r0.state), {
+    match: true,
+    state: { starttime: 100, states: ['end'] }
+  })
+  t.deepEqual(matcher({ name: 'bar', time: 201 }, r0.state), {
+    match: false,
+    state: { starttime: 201, states: ['start'] }
+  })
+
+  t.deepEqual(matcher({ name: 'foo', time: 133 }, { starttime: 123, states: ['start'] }), {
+    match: false,
+    state: {
+      starttime: 133, // Reset the time b/c it began at the 'start' state
+      states: ['s0']
+    }
   })
 })

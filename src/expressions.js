@@ -8,6 +8,24 @@ function wrapInOr (states) {
   return ['or', _.head(states), wrapInOr(_.tail(states))]
 }
 
+/**
+ * Get all permutations of a given array
+ */
+function permute (arr) {
+  return arr.reduce(function permute (res, item, key, arr) {
+    return res.concat(arr.length > 1
+      ? arr
+        .slice(0, key)
+        .concat(arr.slice(key + 1))
+        .reduce(permute, [])
+        .map(function (perm) {
+          return [item].concat(perm)
+        })
+      : item
+    )
+  }, [])
+}
+
 function e (dt, matcher) {
   let domain
   let name
@@ -156,6 +174,93 @@ function notBetween (a, b, c) {
   return s
 }
 
+function any (num, ...eventexs) {
+  if (!_.isInteger(num)) {
+    throw new TypeError('`any` expects first arg to be an integer')
+  }
+  if (num < 0 || num >= eventexs.length) {
+    throw new TypeError('`any(num, ...eventexs)` expects num to be greater than 0 and less than the number of eventexs')
+  }
+
+  let s = StateMachine()
+
+  let indicesGroups = _.uniqWith(_.map(permute(_.range(0, _.size(eventexs))), function (indices) {
+    return _.take(indices, num)
+  }), _.isEqual)
+
+  _.each(indicesGroups, function (indices) {
+    let prev
+    _.each(indices, function (i, j) {
+      let a = eventexs[i].clone()
+      s.concat(a)
+      if (j === 0) {
+        s.join(a.start, s.start)
+      }
+      if (j === _.size(indices) - 1) {
+        s.join(a.end, s.end)
+      }
+      if (prev) {
+        s.join(prev.end, a.start)
+      }
+      prev = a
+    })
+  })
+
+  s.optimize()
+  return s
+}
+
+function count (num, eventex) {
+  let s = StateMachine()
+
+  let prev
+  _.each(_.range(0, num), function (i, j) {
+    let a = eventex.clone()
+    s.concat(a)
+    if (j === 0) {
+      s.join(a.start, s.start)
+    }
+    if (j === num - 1) {
+      s.join(a.end, s.end)
+    }
+    if (prev) {
+      s.join(prev.end, a.start)
+    }
+    prev = a
+  })
+
+  s.optimize()
+  return s
+}
+
+function repeat (num, eventex) {
+  let s = StateMachine()
+
+  let prev
+  _.each(_.range(0, num), function (i, j) {
+    let a = eventex.clone()
+    s.concat(a)
+    if (j === 0) {
+      s.join(a.start, s.start)
+    }
+    if (j === num - 1) {
+      s.join(a.end, s.end)
+    }
+    if (prev) {
+      s.join(prev.end, a.start)
+    }
+    prev = a
+  })
+
+  // once at the end, repeat
+  s.concat(eventex)
+  s.join(eventex.end, s.end)
+  s.join(eventex.start, s.end)
+
+  s.optimize()
+  return s
+}
+
 function within (a, timeLimit) {
   let { saliance, matcher } = a.toWhenConf()
   let tlimitFn
@@ -203,5 +308,8 @@ module.exports = {
   after,
   between,
   notBetween,
+  any,
+  count,
+  repeat,
   within
 }
