@@ -190,3 +190,28 @@ test('async matcher per rule', async function (t) {
     'run1-ccc'
   ])
 })
+
+test('send rule results', async function (t) {
+  let rs = SelectWhen()
+
+  rs.when(async function (event, state) {
+    await sleep(10)
+    return { match: true, state }
+  }, async function (event, state) {
+    await sleep(10)
+    return 'first rule'
+  })
+
+  rs.when(async function (event, state) {
+    await sleep(1)
+    return { match: true, state }
+  }, async function (event, state) {
+    await sleep(1)
+    return 'second rule'
+  })
+
+  t.deepEqual(await rs.send('aaa'), [
+    { ruleId: 'w0', data: 'first rule' },
+    { ruleId: 'w1', data: 'second rule' }
+  ])
+})

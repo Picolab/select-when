@@ -113,26 +113,28 @@ function SelectWhen () {
     }
   }
 
-  function salientRules (event) {
-    let salient = _.uniq(_.get(salianceGraph, [event.domain, event.name], [])
-      .concat(_.get(salianceGraph, [event.domain, '*'], []))
-      .concat(_.get(salianceGraph, ['*', event.name], []))
-      .concat(_.get(salianceGraph, ['*', '*'], [])))
-
-    return _.sortBy(salient.map(function (id) {
-      return rules[id]
-    }), 'ruleOrder')
-  }
-
   let sendQueue = PromiseSeries()
   function send (event) {
     event = cleanEvent(event)
 
     return sendQueue(async function () {
+      let salient = _.uniq(_.get(salianceGraph, [event.domain, event.name], [])
+        .concat(_.get(salianceGraph, [event.domain, '*'], []))
+        .concat(_.get(salianceGraph, ['*', event.name], []))
+        .concat(_.get(salianceGraph, ['*', '*'], [])))
+
+      let salientRules = _.sortBy(salient.map(function (id) {
+        return rules[id]
+      }), 'ruleOrder')
+
       let result = []
-      for (let rule of salientRules(event)) {
+      for (let rule of salientRules) {
         if (await rule.select(event)) {
-          result.push(await Promise.resolve(rule.fn(event, rule.state)))
+          let res = await Promise.resolve(rule.fn(event, rule.state))
+          result.push({
+            ruleId: rule.id,
+            data: res
+          })
         }
       }
       return result
