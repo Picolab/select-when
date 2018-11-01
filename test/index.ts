@@ -77,6 +77,23 @@ test("saliance graph", async function(t) {
   // should only be askedToMatch the ones that are salient
   t.deepEqual(askedToMatch, ["foo:foo", "bar:bar", "bar:wat"]);
   t.deepEqual(askedToMatch, matches);
+
+  t.deepEqual(rs.getSaliance(), [
+    { domain: "foo", name: "foo" },
+    { domain: "bar", name: "*" }
+  ]);
+
+  let rule2 = new Rule();
+  rule2.saliance = [
+    { domain: "some", name: "new" },
+    { domain: "foo", name: "foo" } // duplicate
+  ];
+  rs.when(rule2, function() {});
+  t.deepEqual(rs.getSaliance(), [
+    { domain: "foo", name: "foo" },
+    { domain: "bar", name: "*" },
+    { domain: "some", name: "new" }
+  ]);
 });
 
 test("async matcher", async function(t) {

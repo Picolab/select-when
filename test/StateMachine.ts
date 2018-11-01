@@ -7,7 +7,7 @@ function mkE(name: string): TransitionEvent_event {
   return { kind: "event", domain: name, name: name };
 }
 
-test("stm.toWhenConf()", function(t) {
+test("stm.getSaliance()", function(t) {
   let stm = new StateMachine();
 
   stm.add(stm.start, { kind: "event", name: "foo" }, stm.end);
@@ -25,12 +25,7 @@ test("stm.toWhenConf()", function(t) {
     stm.end
   );
 
-  let conf = stm.toWhenConf();
-
-  t.deepEqual(_.keys(conf), ["saliance", "matcher"]);
-  t.true(_.isFunction(conf.matcher));
-  t.true(_.isArray(conf.saliance));
-  t.deepEqual(conf.saliance, [
+  t.deepEqual(stm.getSaliance(), [
     { domain: "*", name: "foo" },
     { domain: "bar", name: "*" },
     { domain: "baz", name: "qux" }

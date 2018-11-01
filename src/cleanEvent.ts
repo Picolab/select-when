@@ -1,5 +1,5 @@
 import * as _ from "lodash";
-import { Event } from "./base";
+import { Event } from "./types";
 
 function notBlankStr(str: any): boolean {
   return typeof str === "string" && str.trim().length > 0;

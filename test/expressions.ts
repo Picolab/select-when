@@ -1,10 +1,21 @@
 import test from "ava";
-import { ee } from "../src/expressions";
+import {
+  e,
+  or,
+  and,
+  before,
+  then,
+  after,
+  between,
+  notBetween,
+  any,
+  count,
+  repeat,
+  within
+} from "../src/expressions";
 import { SelectWhen } from "../src";
 
 test("e", async function(t) {
-  let { e } = ee;
-
   t.deepEqual(e("foo:bar").getTransitions()[0].on, {
     kind: "event",
     domain: "foo",
@@ -46,8 +57,6 @@ test("e", async function(t) {
 });
 
 test("before", async function(t) {
-  let { e, before } = ee;
-
   // select when foo before bar
   t.deepEqual(before(e("foo"), e("bar")).compile(), {
     start: [["*:foo", "s0"]],
@@ -66,27 +75,30 @@ test("before", async function(t) {
     "asserting `before's associative property"
   );
 
-  let bm = before(e("foo"), e("bar")).toWhenConf().matcher;
-  t.deepEqual(bm({ name: "foo" }, {}), {
+  let bm = before(e("foo"), e("bar")).toMatcher();
+  t.deepEqual(await bm({ name: "foo", time: 0 }, {}), {
     match: false,
     state: { states: ["s0"] }
   });
-  t.deepEqual(bm({ name: "bar" }, {}), {
+  t.deepEqual(await bm({ name: "bar", time: 0 }, {}), {
     match: false,
     state: { states: ["start"] }
   });
-  t.deepEqual(bm({ name: "bar" }, { states: ["s0"] }), {
+  t.deepEqual(await bm({ name: "bar", time: 0 }, { states: ["s0"] }), {
     match: true,
     state: { states: ["end"] }
   });
-  t.deepEqual(bm({ name: "bar" }, { states: ["end"] }), bm({ name: "bar" }));
   t.deepEqual(
-    bm({ name: "bar" }, { states: ["wat", "da"] }),
-    bm({ name: "bar" })
+    await bm({ name: "bar", time: 0 }, { states: ["end"] }),
+    await bm({ name: "bar", time: 0 }, {})
   );
   t.deepEqual(
-    bm({ name: "bar" }, { states: ["wat", "s0", "da"] }),
-    bm({ name: "bar" }, { states: ["s0"] })
+    await bm({ name: "bar", time: 0 }, { states: ["wat", "da"] }),
+    await bm({ name: "bar", time: 0 }, {})
+  );
+  t.deepEqual(
+    await bm({ name: "bar", time: 0 }, { states: ["wat", "s0", "da"] }),
+    await bm({ name: "bar", time: 0 }, { states: ["s0"] })
   );
 
   let rs = new SelectWhen();
@@ -111,8 +123,6 @@ test("before", async function(t) {
 });
 
 test("or", function(t) {
-  let { e, or } = ee;
-
   let stm = or(e("foo"), e("bar"));
 
   t.deepEqual(stm.compile(), {
@@ -121,8 +131,6 @@ test("or", function(t) {
 });
 
 test("and", function(t) {
-  let { e, and } = ee;
-
   let stm = and(e("aaa"), e("bbb"));
 
   t.deepEqual(stm.compile(), {
@@ -132,20 +140,31 @@ test("and", function(t) {
   });
 });
 
-test("then", function(t) {
-  let { e, then } = ee;
-
-  let stm = then(e("aaa"), e("bbb"));
+test("then", async function(t) {
+  let stm = then(e("aaa:*"), e("aaa:bbb"));
 
   t.deepEqual(stm.compile(), {
-    start: [["*:aaa", "s0"]],
-    s0: [["*:bbb", "end"], [["not", "*:bbb"], "start"]]
+    start: [["aaa:*", "s0"]],
+    s0: [["aaa:bbb", "end"], [["not", "aaa:bbb"], "start"]]
   });
+
+  let matches = 0;
+  let rs = new SelectWhen();
+  rs.when(stm, function() {
+    matches++;
+  });
+  await rs.send("aaa:hi");
+  t.is(matches, 0);
+  await rs.send("aaa:bbb");
+  t.is(matches, 1);
+  await rs.send("aaa:hi");
+  t.is(matches, 1);
+  await rs.send("aaa:ccc");
+  await rs.send("aaa:bbb");
+  t.is(matches, 1);
 });
 
 test("after", function(t) {
-  let { e, after } = ee;
-
   let stm = after(e("aaa"), e("bbb"));
 
   t.deepEqual(stm.compile(), {
@@ -155,8 +174,6 @@ test("after", function(t) {
 });
 
 test("between", function(t) {
-  let { e, between } = ee;
-
   let stm = between(e("aaa"), e("bbb"), e("ccc"));
 
   t.deepEqual(stm.compile(), {
@@ -167,8 +184,6 @@ test("between", function(t) {
 });
 
 test("notBetween", function(t) {
-  let { e, notBetween } = ee;
-
   let stm = notBetween(e("aaa"), e("bbb"), e("ccc"));
 
   t.deepEqual(stm.compile(), {
@@ -178,8 +193,6 @@ test("notBetween", function(t) {
 });
 
 test("any", function(t) {
-  let { e, any } = ee;
-
   let stm = any(2, e("aaa"), e("bbb"), e("ccc"), e("ddd"));
 
   t.deepEqual(stm.compile(), {
@@ -192,8 +205,6 @@ test("any", function(t) {
 });
 
 test("count", function(t) {
-  let { e, count } = ee;
-
   let stm = count(3, e("aaa"));
 
   t.deepEqual(stm.compile(), {
@@ -204,8 +215,6 @@ test("count", function(t) {
 });
 
 test("repeat", function(t) {
-  let { e, repeat } = ee;
-
   let stm = repeat(3, e("aaa"));
 
   t.deepEqual(stm.compile(), {
@@ -218,8 +227,6 @@ test("repeat", function(t) {
 });
 
 test("within", async function(t) {
-  let { e, before, within } = ee;
-
   let matcher = within(before(e("foo"), e("bar")), 100).matcher;
 
   let r0 = await Promise.resolve(matcher({ name: "foo", time: 100 }, null));
@@ -227,17 +234,20 @@ test("within", async function(t) {
     match: false,
     state: { starttime: 100, states: ["s0"] }
   });
-  t.deepEqual(matcher({ name: "bar", time: 110 }, r0.state), {
+  t.deepEqual(await matcher({ name: "bar", time: 110 }, r0.state), {
     match: true,
     state: { starttime: 100, states: ["end"] }
   });
-  t.deepEqual(matcher({ name: "bar", time: 201 }, r0.state), {
+  t.deepEqual(await matcher({ name: "bar", time: 201 }, r0.state), {
     match: false,
     state: { starttime: 201, states: ["start"] }
   });
 
   t.deepEqual(
-    matcher({ name: "foo", time: 133 }, { starttime: 123, states: ["start"] }),
+    await matcher(
+      { name: "foo", time: 133 },
+      { starttime: 123, states: ["start"] }
+    ),
     {
       match: false,
       state: {

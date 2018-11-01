@@ -1,10 +1,14 @@
 import * as _ from "lodash";
 import {
+  Event,
+  MatcherRet,
+  MatcherFn,
   Transition,
   TransitionCompact,
   TransitionEvent_event,
-  TransitionEvent
-} from "./base";
+  TransitionEvent,
+  Saliance
+} from "./types";
 
 function genState() {
   return _.uniqueId("s");
@@ -13,23 +17,12 @@ function genState() {
 type CompiledStateMachine = { [state: string]: [any, string][] };
 
 export class StateMachine {
-  public start = genState();
-  public end = genState();
-  public transitions: TransitionCompact[] = [];
-
-  join(state1: string, state2: string) {
-    _.each(this.transitions, t => {
-      if (t.from === state1) {
-        t.from = state2;
-      }
-      if (t.to === state1) {
-        t.to = state2;
-      }
-    });
-  }
+  public readonly start = genState();
+  public readonly end = genState();
+  private transitions: TransitionCompact[] = [];
 
   private events: { [key: string]: TransitionEvent_event } = {};
-  private efns: any[] = [];
+  private efns: MatcherFn[] = [];
 
   private addEvent(e: TransitionEvent): string {
     switch (e.kind) {
@@ -70,6 +63,23 @@ export class StateMachine {
     });
   }
 
+  concat(other: StateMachine) {
+    _.each(other.getTransitions(), t => {
+      this.add(t.from, t.on, t.to);
+    });
+  }
+
+  join(state1: string, state2: string) {
+    _.each(this.transitions, t => {
+      if (t.from === state1) {
+        t.from = state2;
+      }
+      if (t.to === state1) {
+        t.to = state2;
+      }
+    });
+  }
+
   getEvent(lisp: any): TransitionEvent {
     if (_.isArray(lisp)) {
       switch (lisp[0]) {
@@ -97,6 +107,12 @@ export class StateMachine {
     return this.events[lisp];
   }
 
+  getTransitions(): Transition[] {
+    return this.transitions.map(t => {
+      return { from: t.from, on: this.getEvent(JSON.parse(t.on)), to: t.to };
+    });
+  }
+
   private getStateInputSignature(state: string) {
     let inputs: string[] = [];
     _.each(this.transitions, t => {
@@ -108,18 +124,6 @@ export class StateMachine {
       }
     });
     return inputs.sort().join("|");
-  }
-
-  getTransitions(): Transition[] {
-    return this.transitions.map(t => {
-      return { from: t.from, on: this.getEvent(JSON.parse(t.on)), to: t.to };
-    });
-  }
-
-  concat(other: StateMachine) {
-    _.each(other.getTransitions(), t => {
-      this.add(t.from, t.on, t.to);
-    });
   }
 
   optimize() {
@@ -215,18 +219,6 @@ export class StateMachine {
     return stm;
   }
 
-  toWhenConf() {
-    let stm = this.compile(true);
-    return {
-      saliance: _.values(this.events).map(function(e) {
-        return { domain: e.domain, name: e.name };
-      }),
-      matcher: function(event: any, state?: any) {
-        return stmMatcher(stm, event, state);
-      }
-    };
-  }
-
   clone() {
     let stm = new StateMachine();
     let stateMap: { [old: string]: string } = {};
@@ -247,41 +239,26 @@ export class StateMachine {
     });
     return stm;
   }
+
+  getSaliance(): Saliance[] {
+    return _.values(this.events).map(function(e) {
+      return { domain: e.domain, name: e.name };
+    });
+  }
+
+  toMatcher(): MatcherFn {
+    let stm = this.compile(true);
+    return function(event: Event, state?: any) {
+      return stmMatcher(stm, event, state);
+    };
+  }
 }
 
-function evalExpr(
-  expr: any,
-  event: any,
+async function stmMatcher(
+  stm: CompiledStateMachine,
+  event: Event,
   state: any
-): { match: boolean; state: any } {
-  if (_.isArray(expr)) {
-    let m1 = evalExpr(expr[1], event, state);
-    switch (expr[0]) {
-      case "not":
-        return { match: !m1.match, state: m1.state };
-      case "or":
-        return m1.match ? m1 : evalExpr(expr[2], event, m1.state);
-      case "and":
-        return m1.match
-          ? evalExpr(expr[2], event, m1.state)
-          : { match: false, state: m1.state };
-      default:
-        throw new Error("Bad event state transition");
-    }
-  }
-  if (expr.domain !== "*" && expr.domain !== event.domain) {
-    return { match: false, state };
-  }
-  if (expr.name !== "*" && expr.name !== event.name) {
-    return { match: false, state };
-  }
-  if (expr.matcher) {
-    return expr.matcher(event, state);
-  }
-  return { match: true, state };
-}
-
-function stmMatcher(stm: CompiledStateMachine, event: any, state: any) {
+): Promise<MatcherRet> {
   let stmStates = _.filter(_.flattenDeep([state && state.states]), function(
     st
   ) {
@@ -294,11 +271,8 @@ function stmMatcher(stm: CompiledStateMachine, event: any, state: any) {
 
   let matches = [];
   for (let cstate of stmStates) {
-    let transitions = stm[cstate];
-    for (let transition of transitions) {
-      let expr = transition[0];
-      let stmState = transition[1];
-      let m = evalExpr(expr, event, state);
+    for (let [expr, stmState] of stm[cstate]) {
+      let m = await evalExpr(expr, event, state);
       state = m.state;
       if (m.match === true) {
         // found a match
@@ -324,4 +298,38 @@ function stmMatcher(stm: CompiledStateMachine, event: any, state: any) {
     match: false,
     state: state
   };
+}
+
+async function evalExpr(
+  expr: TransitionEvent,
+  event: Event,
+  state: any
+): Promise<MatcherRet> {
+  let left;
+  switch (expr.kind) {
+    case "event":
+      if (expr.domain !== "*" && expr.domain !== event.domain) {
+        return { match: false, state };
+      }
+      if (expr.name !== "*" && expr.name !== event.name) {
+        return { match: false, state };
+      }
+      if (expr.matcher) {
+        return expr.matcher(event, state);
+      }
+      return { match: true, state };
+    case "not":
+      let m1 = await Promise.resolve(evalExpr(expr.right, event, state));
+      return { match: !m1.match, state: m1.state };
+    case "or":
+      left = await Promise.resolve(evalExpr(expr.left, event, state));
+      return left.match ? left : evalExpr(expr.right, event, left.state);
+    case "and":
+      left = await Promise.resolve(evalExpr(expr.left, event, state));
+      return left.match
+        ? evalExpr(expr.right, event, left.state)
+        : { match: false, state: left.state };
+    default:
+      throw new Error("Bad event state transition");
+  }
 }

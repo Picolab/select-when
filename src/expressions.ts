@@ -1,6 +1,7 @@
 import * as _ from "lodash";
 import { StateMachine } from "./StateMachine";
-import { MatcherFn, Rule, TransitionEvent } from "./base";
+import { Rule } from "./Rule";
+import { MatcherFn, TransitionEvent } from "./types";
 
 function wrapInOr(states: TransitionEvent[]): TransitionEvent {
   if (states.length === 1) {
@@ -32,7 +33,7 @@ function permute(arr: any[]): any[] {
   }, []);
 }
 
-function e(dt: string, matcher?: MatcherFn) {
+export function e(dt: string, matcher?: MatcherFn) {
   let domain;
   let name;
   let parts = dt.split(":");
@@ -55,7 +56,7 @@ function e(dt: string, matcher?: MatcherFn) {
   return s;
 }
 
-function or(a: StateMachine, b: StateMachine) {
+export function or(a: StateMachine, b: StateMachine) {
   let s = new StateMachine();
 
   s.concat(a);
@@ -69,7 +70,7 @@ function or(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-function and(a0: StateMachine, b0: StateMachine) {
+export function and(a0: StateMachine, b0: StateMachine) {
   let s = new StateMachine();
 
   let a1 = a0.clone();
@@ -92,7 +93,7 @@ function and(a0: StateMachine, b0: StateMachine) {
   return s;
 }
 
-function before(a: StateMachine, b: StateMachine) {
+export function before(a: StateMachine, b: StateMachine) {
   let s = new StateMachine();
 
   s.concat(a);
@@ -106,7 +107,7 @@ function before(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-function then(a: StateMachine, b: StateMachine) {
+export function then(a: StateMachine, b: StateMachine) {
   let s = new StateMachine();
 
   s.concat(a);
@@ -136,7 +137,7 @@ function then(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-function after(a: StateMachine, b: StateMachine) {
+export function after(a: StateMachine, b: StateMachine) {
   let s = new StateMachine();
 
   s.concat(a);
@@ -150,7 +151,7 @@ function after(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-function between(a: StateMachine, b: StateMachine, c: StateMachine) {
+export function between(a: StateMachine, b: StateMachine, c: StateMachine) {
   let s = new StateMachine();
 
   s.concat(a);
@@ -166,7 +167,7 @@ function between(a: StateMachine, b: StateMachine, c: StateMachine) {
   return s;
 }
 
-function notBetween(a: StateMachine, b: StateMachine, c: StateMachine) {
+export function notBetween(a: StateMachine, b: StateMachine, c: StateMachine) {
   let s = new StateMachine();
 
   s.concat(a);
@@ -186,7 +187,7 @@ function notBetween(a: StateMachine, b: StateMachine, c: StateMachine) {
   return s;
 }
 
-function any(num: number, ...eventexs: StateMachine[]) {
+export function any(num: number, ...eventexs: StateMachine[]) {
   if (!_.isInteger(num)) {
     throw new TypeError("`any` expects first arg to be an integer");
   }
@@ -227,7 +228,7 @@ function any(num: number, ...eventexs: StateMachine[]) {
   return s;
 }
 
-function count(num: number, eventex: StateMachine) {
+export function count(num: number, eventex: StateMachine) {
   let s = new StateMachine();
 
   let prev: StateMachine;
@@ -250,7 +251,7 @@ function count(num: number, eventex: StateMachine) {
   return s;
 }
 
-function repeat(num: number, eventex: StateMachine) {
+export function repeat(num: number, eventex: StateMachine) {
   let s = new StateMachine();
 
   let prev: StateMachine;
@@ -278,11 +279,10 @@ function repeat(num: number, eventex: StateMachine) {
   return s;
 }
 
-function within(
+export function within(
   a: StateMachine,
   timeLimit: number | ((event: any, state: any) => number)
 ): Rule {
-  let { saliance, matcher } = a.toWhenConf();
   let tlimitFn: any;
   if (_.isFinite(timeLimit)) {
     tlimitFn = function() {
@@ -297,7 +297,8 @@ function within(
   }
 
   let rule = new Rule();
-  rule.saliance = saliance;
+  rule.saliance = a.getSaliance();
+  let matcher = a.toMatcher();
   rule.matcher = function(event: any, state?: any) {
     let starttime = _.isInteger(state && state.starttime)
       ? state.starttime
@@ -329,18 +330,3 @@ function within(
 
   return rule;
 }
-
-export const ee = {
-  e,
-  or,
-  and,
-  before,
-  then,
-  after,
-  between,
-  notBetween,
-  any,
-  count,
-  repeat,
-  within
-};
