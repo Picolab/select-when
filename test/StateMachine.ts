@@ -1,19 +1,27 @@
 import * as _ from "lodash";
 import test from "ava";
 import { StateMachine } from "../src/StateMachine";
+import { Event, TransitionEvent_event } from "../src/base";
 
-function mkE(name: string) {
-  return { domain: name, name: name, matcher: true };
+function mkE(name: string): TransitionEvent_event {
+  return { kind: "event", domain: name, name: name };
 }
 
 test("stm.toWhenConf()", function(t) {
   let stm = new StateMachine();
 
-  stm.add(stm.start, { name: "foo", blah: "extra" }, stm.end);
-  stm.add(stm.start, { domain: "bar", matcher: true }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "foo" }, stm.end);
+  stm.add(stm.start, { kind: "event", domain: "bar", name: "" }, stm.end);
   stm.add(
     stm.start,
-    { domain: "baz", name: "qux", matcher: function() {} },
+    {
+      kind: "event",
+      domain: "baz",
+      name: "qux",
+      matcher: function(event: Event, state: any) {
+        return { match: true, state };
+      }
+    },
     stm.end
   );
 
@@ -94,17 +102,17 @@ test("stm.optimize() merge states, but don't interfere with other paths.", funct
 test("StateMachine unique events and matcher function management", function(t) {
   let stm = new StateMachine();
 
-  let fn0 = function() {};
-  let fn1 = function() {};
-  let fn2 = function() {};
+  let fn0 = (event: Event, state: any) => ({ match: true, state });
+  let fn1 = (event: Event, state: any) => ({ match: true, state });
+  let fn2 = (event: Event, state: any) => ({ match: true, state });
 
-  stm.add(stm.start, { domain: "*", name: "aaa", matcher: true }, stm.end);
-  stm.add(stm.start, { name: "aaa", matcher: true }, stm.end);
-  stm.add(stm.start, { name: "aaa", matcher: fn0 }, stm.end);
-  stm.add(stm.start, { name: "aaa", matcher: fn0 }, stm.end);
-  stm.add(stm.start, { name: "aaa", matcher: fn1 }, stm.end);
-  stm.add(stm.start, { name: "aaa", matcher: fn2 }, stm.end);
-  stm.add(stm.start, { name: "wat", matcher: fn1 }, stm.end);
+  stm.add(stm.start, { kind: "event", domain: "*", name: "aaa" }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "aaa" }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "aaa", matcher: fn0 }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "aaa", matcher: fn0 }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "aaa", matcher: fn1 }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "aaa", matcher: fn2 }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "wat", matcher: fn1 }, stm.end);
 
   t.deepEqual(stm.compile(), {
     start: [
@@ -127,37 +135,53 @@ test("StateMachine unique events and matcher function management", function(t) {
       ["*:wat:fn1", "end"]
     ]
   });
-  t.is(stm.getEvent("*:aaa:fn0").matcher, fn0);
-  t.is(stm.getEvent("*:aaa:fn1").matcher, fn1);
-  t.is(stm.getEvent("*:aaa:fn2").matcher, fn2);
-  t.is(stm.getEvent("*:wat:fn1").matcher, fn1);
+  function getMatcher(str: string) {
+    let e = stm.getEvent(str);
+    return e.kind === "event" ? e.matcher : null;
+  }
+  t.is(getMatcher("*:aaa:fn0"), fn0);
+  t.is(getMatcher("*:aaa:fn1"), fn1);
+  t.is(getMatcher("*:aaa:fn2"), fn2);
+  t.is(getMatcher("*:wat:fn1"), fn1);
 });
 
 test("StateMachine clone()", function(t) {
   let stm = new StateMachine();
-  stm.add(stm.start, { name: "foo" }, "aaa");
-  stm.add("aaa", { name: "bar" }, "bbb");
-  stm.add("aaa", { name: "baz" }, "ccc");
-  stm.add("bbb", { name: "qux" }, stm.end);
-  stm.add("ccc", { name: "quux" }, stm.end);
+  stm.add(stm.start, { kind: "event", name: "foo" }, "aaa");
+  stm.add("aaa", { kind: "event", name: "bar" }, "bbb");
+  stm.add("aaa", { kind: "event", name: "baz" }, "ccc");
+  stm.add("bbb", { kind: "event", name: "qux" }, stm.end);
+  stm.add("ccc", { kind: "event", name: "quux" }, stm.end);
 
   t.deepEqual(stm.getTransitions(), [
-    [stm.start, { domain: "*", name: "foo" }, "aaa"],
-    ["aaa", { domain: "*", name: "bar" }, "bbb"],
-    ["aaa", { domain: "*", name: "baz" }, "ccc"],
-    ["bbb", { domain: "*", name: "qux" }, stm.end],
-    ["ccc", { domain: "*", name: "quux" }, stm.end]
+    {
+      from: stm.start,
+      on: { kind: "event", domain: "*", name: "foo" },
+      to: "aaa"
+    },
+    { from: "aaa", on: { kind: "event", domain: "*", name: "bar" }, to: "bbb" },
+    { from: "aaa", on: { kind: "event", domain: "*", name: "baz" }, to: "ccc" },
+    {
+      from: "bbb",
+      on: { kind: "event", domain: "*", name: "qux" },
+      to: stm.end
+    },
+    {
+      from: "ccc",
+      on: { kind: "event", domain: "*", name: "quux" },
+      to: stm.end
+    }
   ]);
 
   let stm2 = stm.clone();
   let trans = stm2.getTransitions();
-  t.is(trans[0][0], stm2.start);
-  t.deepEqual(trans[0][1], { domain: "*", name: "foo" });
-  t.deepEqual(trans[1][1], { domain: "*", name: "bar" });
-  t.is(trans[0][2], trans[1][0]);
-  t.not(trans[0][2], "aaa");
-  t.is(trans[2][2], trans[4][0]);
-  t.is(trans[4][2], stm2.end);
+  t.is(trans[0].from, stm2.start);
+  t.deepEqual(trans[0].on, { kind: "event", domain: "*", name: "foo" });
+  t.deepEqual(trans[1].on, { kind: "event", domain: "*", name: "bar" });
+  t.is(trans[0].to, trans[1].from);
+  t.not(trans[0].to, "aaa");
+  t.is(trans[2].to, trans[4].from);
+  t.is(trans[4].to, stm2.end);
   t.not(stm.start, stm2.start);
   t.not(stm.end, stm2.end);
 });

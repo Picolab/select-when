@@ -5,15 +5,18 @@ import { SelectWhen } from "../src";
 test("e", async function(t) {
   let { e } = ee;
 
-  t.deepEqual(e("foo:bar").getTransitions()[0][1], {
+  t.deepEqual(e("foo:bar").getTransitions()[0].on, {
+    kind: "event",
     domain: "foo",
     name: "bar"
   });
-  t.deepEqual(e("foo").getTransitions()[0][1], {
+  t.deepEqual(e("foo").getTransitions()[0].on, {
+    kind: "event",
     domain: "*",
     name: "foo"
   });
-  t.deepEqual(e("foo:*").getTransitions()[0][1], {
+  t.deepEqual(e("foo:*").getTransitions()[0].on, {
+    kind: "event",
     domain: "foo",
     name: "*"
   });
@@ -21,7 +24,8 @@ test("e", async function(t) {
   let fn = function(event: any, state: any) {
     return { match: true, state: null };
   };
-  t.deepEqual(e("foo", fn).getTransitions()[0][1], {
+  t.deepEqual(e("foo", fn).getTransitions()[0].on, {
+    kind: "event",
     domain: "*",
     name: "foo",
     matcher: fn
@@ -213,12 +217,12 @@ test("repeat", function(t) {
   // TODO test that the end state loop works as expected
 });
 
-test("within", function(t) {
+test("within", async function(t) {
   let { e, before, within } = ee;
 
   let matcher = within(before(e("foo"), e("bar")), 100).matcher;
 
-  let r0 = matcher({ name: "foo", time: 100 });
+  let r0 = await Promise.resolve(matcher({ name: "foo", time: 100 }, null));
   t.deepEqual(r0, {
     match: false,
     state: { starttime: 100, states: ["s0"] }

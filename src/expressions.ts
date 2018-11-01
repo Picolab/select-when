@@ -1,16 +1,16 @@
 import * as _ from "lodash";
 import { StateMachine } from "./StateMachine";
+import { MatcherFn, Rule, TransitionEvent } from "./base";
 
-type Matcher = (
-  event: any,
-  state: any
-) => { match: boolean; state: any } | Promise<{ match: boolean; state: any }>;
-
-function wrapInOr(states: any): any {
-  if (_.size(states) === 1) {
-    return _.head(states);
+function wrapInOr(states: TransitionEvent[]): TransitionEvent {
+  if (states.length === 1) {
+    return states[0];
   }
-  return ["or", _.head(states), wrapInOr(_.tail(states))];
+  return {
+    kind: "or",
+    left: states[0],
+    right: wrapInOr(_.tail(states))
+  };
 }
 
 /**
@@ -32,7 +32,7 @@ function permute(arr: any[]): any[] {
   }, []);
 }
 
-function e(dt: string, matcher?: Matcher) {
+function e(dt: string, matcher?: MatcherFn) {
   let domain;
   let name;
   let parts = dt.split(":");
@@ -44,10 +44,11 @@ function e(dt: string, matcher?: Matcher) {
     name = parts[0];
   }
 
-  let eee = {
+  let eee: TransitionEvent = {
+    kind: "event",
     domain: domain,
     name: name,
-    matcher: typeof matcher === "function" ? matcher : true
+    matcher: matcher
   };
   let s = new StateMachine();
   s.add(s.start, eee, s.end);
@@ -116,17 +117,18 @@ function then(a: StateMachine, b: StateMachine) {
   s.join(b.end, s.end);
 
   let transitions = s.getTransitions();
-  let notB = wrapInOr(
-    _.uniq(
-      _.compact(
-        _.map(transitions, function(t) {
-          if (t[0] === b.start) {
-            return ["not", t[1]];
-          }
-        })
-      )
+  let bTEvents = _(transitions)
+    .map(
+      (t): TransitionEvent | undefined => {
+        if (t.from === b.start) {
+          return { kind: "not", right: t.on };
+        }
+      }
     )
-  );
+    .compact()
+    .uniqWith(_.isEqual)
+    .value();
+  let notB = wrapInOr(bTEvents);
 
   s.add(b.start, notB, s.start);
 
@@ -279,7 +281,7 @@ function repeat(num: number, eventex: StateMachine) {
 function within(
   a: StateMachine,
   timeLimit: number | ((event: any, state: any) => number)
-) {
+): Rule {
   let { saliance, matcher } = a.toWhenConf();
   let tlimitFn: any;
   if (_.isFinite(timeLimit)) {
@@ -294,7 +296,9 @@ function within(
     );
   }
 
-  let withinMatcher = function(event: any, state?: any) {
+  let rule = new Rule();
+  rule.saliance = saliance;
+  rule.matcher = function(event: any, state?: any) {
     let starttime = _.isInteger(state && state.starttime)
       ? state.starttime
       : event.time;
@@ -323,7 +327,7 @@ function within(
     return matcher(event, state);
   };
 
-  return { saliance, matcher: withinMatcher };
+  return rule;
 }
 
 export const ee = {

@@ -1,17 +1,11 @@
 import * as _ from "lodash";
-
-export interface Event {
-  domain: string | null;
-  name: string;
-  data: any;
-  time: number;
-}
+import { Event } from "./base";
 
 function notBlankStr(str: any): boolean {
   return typeof str === "string" && str.trim().length > 0;
 }
 
-export function cleanEvent(eventIn: any): Event {
+export default function cleanEvent(eventIn: any): Event {
   if (typeof eventIn === "string" && notBlankStr(eventIn)) {
     let parts = eventIn.split(":");
     eventIn = {};

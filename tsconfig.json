@@ -5,8 +5,7 @@
     "sourceMap": true,
     "declaration": true,
     "outDir": "dist",
-    "strict": true,
-    "allowJs": true
+    "strict": true
   },
   "include": ["src", "test"]
 }

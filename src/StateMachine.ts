@@ -1,4 +1,10 @@
 import * as _ from "lodash";
+import {
+  Transition,
+  TransitionCompact,
+  TransitionEvent_event,
+  TransitionEvent
+} from "./base";
 
 function genState() {
   return _.uniqueId("s");
@@ -6,86 +12,84 @@ function genState() {
 
 type CompiledStateMachine = { [state: string]: [any, string][] };
 
-interface EventPattern {
-  domain: string;
-  name: string;
-  matcher?: (
-    event: any,
-    state: any
-  ) => { match: true; state: any } | Promise<{ match: true; state: any }>;
-}
-
 export class StateMachine {
   public start = genState();
   public end = genState();
-  public transitions: [string, string, string][] = [];
+  public transitions: TransitionCompact[] = [];
 
   join(state1: string, state2: string) {
     _.each(this.transitions, t => {
-      if (t[0] === state1) {
-        t[0] = state2;
+      if (t.from === state1) {
+        t.from = state2;
       }
-      if (t[2] === state1) {
-        t[2] = state2;
+      if (t.to === state1) {
+        t.to = state2;
       }
     });
   }
 
-  private events: { [key: string]: EventPattern } = {};
+  private events: { [key: string]: TransitionEvent_event } = {};
   private efns: any[] = [];
 
-  addEvent(e: any): any {
-    if (_.isArray(e)) {
-      switch (e[0]) {
-        case "not":
-          if (e.length !== 2) {
-            throw new Error("Bad event state transition");
+  private addEvent(e: TransitionEvent): string {
+    switch (e.kind) {
+      case "not":
+        return `["not",${this.addEvent(e.right)}]`;
+      case "or":
+        return `["or",${this.addEvent(e.left)},${this.addEvent(e.right)}]`;
+      case "and":
+        return `["and",${this.addEvent(e.left)},${this.addEvent(e.right)}]`;
+      case "event":
+        let event: TransitionEvent_event = {
+          kind: "event",
+          domain: e.domain || "*",
+          name: e.name || "*"
+        };
+        let key = [event.domain, event.name].join(":");
+        if (_.isFunction(e.matcher)) {
+          event.matcher = e.matcher;
+          let i = this.efns.indexOf(e.matcher);
+          if (i < 0) {
+            i = this.efns.length;
+            this.efns.push(e.matcher);
           }
-          return ["not", this.addEvent(e[1])];
-        case "or":
-        case "and":
-          if (e.length !== 3) {
-            throw new Error("Bad event state transition");
-          }
-          return [e[0], this.addEvent(e[1]), this.addEvent(e[2])];
-        default:
-          throw new Error("Bad event state transition");
-      }
+          key += ":fn" + i;
+        }
+        this.events[key] = event;
+        return JSON.stringify(key);
+      default:
+        throw new Error("Bad TransitionEvent.kind " + JSON.stringify(e));
     }
-    let event: EventPattern = {
-      domain: e.domain || "*",
-      name: e.name || "*"
-    };
-    let key = [event.domain, event.name || "*"].join(":");
-    if (_.isFunction(e.matcher)) {
-      let i = this.efns.indexOf(e.matcher);
-      if (i < 0) {
-        i = this.efns.length;
-        this.efns.push(e.matcher);
-      }
-      key += ":fn" + i;
-      event.matcher = e.matcher;
-    }
-    this.events[key] = event;
-    return key;
   }
 
-  add(fromState: string, onEvent: any, toState: string) {
-    this.transitions.push([
-      fromState,
-      JSON.stringify(this.addEvent(onEvent)),
-      toState
-    ]);
+  add(fromState: string, onEvent: TransitionEvent, toState: string) {
+    this.transitions.push({
+      from: fromState,
+      on: this.addEvent(onEvent),
+      to: toState
+    });
   }
 
-  getEvent(lisp: string | any[]): EventPattern | any {
+  getEvent(lisp: any): TransitionEvent {
     if (_.isArray(lisp)) {
       switch (lisp[0]) {
         case "not":
-          return ["not", this.getEvent(lisp[1])];
+          return {
+            kind: "not",
+            right: this.getEvent(lisp[1])
+          };
         case "or":
+          return {
+            kind: "or",
+            left: this.getEvent(lisp[1]),
+            right: this.getEvent(lisp[2])
+          };
         case "and":
-          return [lisp[0], this.getEvent(lisp[1]), this.getEvent(lisp[2])];
+          return {
+            kind: "and",
+            left: this.getEvent(lisp[1]),
+            right: this.getEvent(lisp[2])
+          };
         default:
           throw new Error("Bad event state transition");
       }
@@ -96,8 +100,8 @@ export class StateMachine {
   private getStateInputSignature(state: string) {
     let inputs: string[] = [];
     _.each(this.transitions, t => {
-      if (t[2] === state) {
-        let key = t[0] + t[1];
+      if (t.to === state) {
+        let key = t.from + t.on;
         if (inputs.indexOf(key) < 0) {
           inputs.push(key);
         }
@@ -106,15 +110,15 @@ export class StateMachine {
     return inputs.sort().join("|");
   }
 
-  getTransitions() {
+  getTransitions(): Transition[] {
     return this.transitions.map(t => {
-      return [t[0], this.getEvent(JSON.parse(t[1])), t[2]];
+      return { from: t.from, on: this.getEvent(JSON.parse(t.on)), to: t.to };
     });
   }
 
   concat(other: StateMachine) {
     _.each(other.getTransitions(), t => {
-      this.add.apply(this, t);
+      this.add(t.from, t.on, t.to);
     });
   }
 
@@ -122,10 +126,10 @@ export class StateMachine {
     // Find all cases where the same event goes to different states and join those states into one
     while (true) {
       let toJoin: [string, string][] = [];
-      let groupped: any = {};
+      let groupped: { [key: string]: string } = {};
       _.each(this.transitions, t => {
-        let key = t[0] + t[1];
-        let state = t[2];
+        let key = t.from + t.on;
+        let state = t.to;
         if (_.has(groupped, key)) {
           if (state !== groupped[key]) {
             toJoin.push([state, groupped[key]]);
@@ -151,15 +155,15 @@ export class StateMachine {
     }
 
     // Remove duplicate transitions
-    let tree: { [from: string]: { [e: string]: { [to: string]: true } } } = {};
+    let tree: { [on: string]: { [from: string]: { [to: string]: true } } } = {};
     _.each(this.transitions, t => {
-      _.set(tree, [t[1], t[0], t[2]], true);
+      _.set(tree, [t.on, t.from, t.to], true);
     });
     this.transitions = [];
-    _.each(tree, (froms, onEvent) => {
-      _.each(froms, (tos, fromState) => {
-        _.each(tos, (bool, toState) => {
-          this.transitions.push([fromState, onEvent, toState]);
+    _.each(tree, (a, on) => {
+      _.each(a, (b, from) => {
+        _.each(b, (c, to) => {
+          this.transitions.push({ on, from, to });
         });
       });
     });
@@ -179,34 +183,34 @@ export class StateMachine {
       outStates[state] = "s" + i++;
       return outStates[state];
     };
-    let outTransitions = _.sortBy(
-      _.map(this.transitions, t => {
-        return [toOutState(t[0]), t[1], toOutState(t[2])];
-      }),
-      t => {
+    let outTransitions = _(this.transitions)
+      .map(t => {
+        return { from: toOutState(t.from), on: t.on, to: toOutState(t.to) };
+      })
+      .sortBy(t => {
         let score = 0;
-        if (t[0] === "start") {
+        if (t.from === "start") {
           score -= Infinity;
         }
-        if (t[0] === "end") {
+        if (t.from === "end") {
           score += Infinity;
         }
-        if (/^s[0-9]+$/.test(t[0])) {
-          score += _.parseInt(t[0].substring(1), 10) || 0;
+        if (/^s[0-9]+$/.test(t.from)) {
+          score += _.parseInt(t.from.substring(1), 10) || 0;
         }
         return score;
-      }
-    );
+      })
+      .value();
     let stm: CompiledStateMachine = {};
     _.each(outTransitions, t => {
-      if (!_.has(stm, t[0])) {
-        stm[t[0]] = [];
+      if (!_.has(stm, t.from)) {
+        stm[t.from] = [];
       }
-      let expr = JSON.parse(t[1]);
+      let expr = JSON.parse(t.on);
       if (expandExpr) {
         expr = this.getEvent(expr);
       }
-      stm[t[0]].push([expr, t[2]]);
+      stm[t.from].push([expr, t.to]);
     });
     return stm;
   }
@@ -235,7 +239,11 @@ export class StateMachine {
       return stateMap[s];
     }
     this.transitions.forEach(t => {
-      stm.add(newState(t[0]), this.getEvent(JSON.parse(t[1])), newState(t[2]));
+      stm.add(
+        newState(t.from),
+        this.getEvent(JSON.parse(t.on)),
+        newState(t.to)
+      );
     });
     return stm;
   }
