@@ -2,31 +2,36 @@
   "name": "select-when",
   "version": "0.0.0",
   "description": "nodejs library to create expressions that pattern match over an event stream",
-  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Picolab/select-when.git"
   },
-  "keywords": [
-    "event",
-    "microservice",
-    "event-sourcing",
-    "pattern-matching"
-  ],
+  "keywords": ["event", "microservice", "event-sourcing", "pattern-matching"],
   "author": "Picolab",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/Picolab/select-when/issues"
   },
   "homepage": "https://github.com/Picolab/select-when#readme",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "standard && ava"
+    "prepublish": "npm run build",
+    "build": "rm -rf dist && tsc",
+    "test": "ava"
   },
   "devDependencies": {
-    "ava": "^0.25.0",
-    "standard": "^12.0.1"
+    "@types/lodash": "^4.14.117",
+    "ava": "^1.0.0-rc.1",
+    "ts-node": "^7.0.1",
+    "typescript": "^3.1.5"
   },
   "dependencies": {
     "lodash": "^4.17.11"
+  },
+  "ava": {
+    "compileEnhancements": false,
+    "extensions": ["ts"],
+    "require": ["ts-node/register"]
   }
 }

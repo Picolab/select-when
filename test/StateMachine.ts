@@ -1,0 +1,163 @@
+import * as _ from "lodash";
+import test from "ava";
+import { StateMachine } from "../src/StateMachine";
+
+function mkE(name: string) {
+  return { domain: name, name: name, matcher: true };
+}
+
+test("stm.toWhenConf()", function(t) {
+  let stm = new StateMachine();
+
+  stm.add(stm.start, { name: "foo", blah: "extra" }, stm.end);
+  stm.add(stm.start, { domain: "bar", matcher: true }, stm.end);
+  stm.add(
+    stm.start,
+    { domain: "baz", name: "qux", matcher: function() {} },
+    stm.end
+  );
+
+  let conf = stm.toWhenConf();
+
+  t.deepEqual(_.keys(conf), ["saliance", "matcher"]);
+  t.true(_.isFunction(conf.matcher));
+  t.true(_.isArray(conf.saliance));
+  t.deepEqual(conf.saliance, [
+    { domain: "*", name: "foo" },
+    { domain: "bar", name: "*" },
+    { domain: "baz", name: "qux" }
+  ]);
+});
+
+test("stm.optimize() remove duplicate transitions", function(t) {
+  let stm = new StateMachine();
+
+  stm.add(stm.start, mkE("aaa"), stm.end);
+  stm.add(stm.start, mkE("bbb"), stm.end);
+  stm.add(stm.start, mkE("aaa"), stm.end);
+
+  t.deepEqual(stm.compile(), {
+    start: [["aaa:aaa", "end"], ["bbb:bbb", "end"], ["aaa:aaa", "end"]]
+  });
+  stm.optimize();
+  t.deepEqual(stm.compile(), {
+    start: [["aaa:aaa", "end"], ["bbb:bbb", "end"]]
+  });
+});
+
+test("stm.optimize() merge states", function(t) {
+  let stm = new StateMachine();
+
+  stm.add(stm.start, mkE("aaa"), "state0");
+  stm.add(stm.start, mkE("aaa"), "state1");
+  stm.add("state0", mkE("ccc"), stm.end);
+  stm.add("state1", mkE("ddd"), stm.end);
+
+  t.deepEqual(stm.compile(), {
+    start: [["aaa:aaa", "s0"], ["aaa:aaa", "s1"]],
+    s0: [["ccc:ccc", "end"]],
+    s1: [["ddd:ddd", "end"]]
+  });
+  stm.optimize();
+  t.deepEqual(stm.compile(), {
+    start: [["aaa:aaa", "s0"]],
+    s0: [["ccc:ccc", "end"], ["ddd:ddd", "end"]]
+  });
+});
+
+test("stm.optimize() merge states, but don't interfere with other paths.", function(t) {
+  let stm = new StateMachine();
+
+  stm.add(stm.start, mkE("aaa"), "state0");
+  stm.add(stm.start, mkE("aaa"), "state1");
+  stm.add(stm.start, mkE("bbb"), "state1");
+  stm.add("state0", mkE("ccc"), stm.end);
+  stm.add("state1", mkE("ddd"), stm.end);
+
+  t.deepEqual(stm.compile(), {
+    start: [["aaa:aaa", "s0"], ["aaa:aaa", "s1"], ["bbb:bbb", "s1"]],
+    s0: [["ccc:ccc", "end"]],
+    s1: [["ddd:ddd", "end"]]
+  });
+  stm.optimize();
+  t.deepEqual(stm.compile(), {
+    start: [
+      ["aaa:aaa", "s0"],
+      ["aaa:aaa", "s1"], // leave this duplicate path b/c bbb:bbb is also using it
+      ["bbb:bbb", "s1"]
+    ],
+    s0: [["ccc:ccc", "end"]],
+    s1: [["ddd:ddd", "end"]]
+  });
+});
+
+test("StateMachine unique events and matcher function management", function(t) {
+  let stm = new StateMachine();
+
+  let fn0 = function() {};
+  let fn1 = function() {};
+  let fn2 = function() {};
+
+  stm.add(stm.start, { domain: "*", name: "aaa", matcher: true }, stm.end);
+  stm.add(stm.start, { name: "aaa", matcher: true }, stm.end);
+  stm.add(stm.start, { name: "aaa", matcher: fn0 }, stm.end);
+  stm.add(stm.start, { name: "aaa", matcher: fn0 }, stm.end);
+  stm.add(stm.start, { name: "aaa", matcher: fn1 }, stm.end);
+  stm.add(stm.start, { name: "aaa", matcher: fn2 }, stm.end);
+  stm.add(stm.start, { name: "wat", matcher: fn1 }, stm.end);
+
+  t.deepEqual(stm.compile(), {
+    start: [
+      ["*:aaa", "end"],
+      ["*:aaa", "end"],
+      ["*:aaa:fn0", "end"],
+      ["*:aaa:fn0", "end"],
+      ["*:aaa:fn1", "end"],
+      ["*:aaa:fn2", "end"],
+      ["*:wat:fn1", "end"]
+    ]
+  });
+  stm.optimize();
+  t.deepEqual(stm.compile(), {
+    start: [
+      ["*:aaa", "end"],
+      ["*:aaa:fn0", "end"],
+      ["*:aaa:fn1", "end"],
+      ["*:aaa:fn2", "end"],
+      ["*:wat:fn1", "end"]
+    ]
+  });
+  t.is(stm.getEvent("*:aaa:fn0").matcher, fn0);
+  t.is(stm.getEvent("*:aaa:fn1").matcher, fn1);
+  t.is(stm.getEvent("*:aaa:fn2").matcher, fn2);
+  t.is(stm.getEvent("*:wat:fn1").matcher, fn1);
+});
+
+test("StateMachine clone()", function(t) {
+  let stm = new StateMachine();
+  stm.add(stm.start, { name: "foo" }, "aaa");
+  stm.add("aaa", { name: "bar" }, "bbb");
+  stm.add("aaa", { name: "baz" }, "ccc");
+  stm.add("bbb", { name: "qux" }, stm.end);
+  stm.add("ccc", { name: "quux" }, stm.end);
+
+  t.deepEqual(stm.getTransitions(), [
+    [stm.start, { domain: "*", name: "foo" }, "aaa"],
+    ["aaa", { domain: "*", name: "bar" }, "bbb"],
+    ["aaa", { domain: "*", name: "baz" }, "ccc"],
+    ["bbb", { domain: "*", name: "qux" }, stm.end],
+    ["ccc", { domain: "*", name: "quux" }, stm.end]
+  ]);
+
+  let stm2 = stm.clone();
+  let trans = stm2.getTransitions();
+  t.is(trans[0][0], stm2.start);
+  t.deepEqual(trans[0][1], { domain: "*", name: "foo" });
+  t.deepEqual(trans[1][1], { domain: "*", name: "bar" });
+  t.is(trans[0][2], trans[1][0]);
+  t.not(trans[0][2], "aaa");
+  t.is(trans[2][2], trans[4][0]);
+  t.is(trans[4][2], stm2.end);
+  t.not(stm.start, stm2.start);
+  t.not(stm.end, stm2.end);
+});
