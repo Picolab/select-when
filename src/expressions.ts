@@ -280,8 +280,8 @@ export function repeat(num: number, eventex: StateMachine) {
 }
 
 export function within(
-  a: StateMachine,
-  timeLimit: number | ((event: any, state: any) => number)
+  timeLimit: number | ((event: any, state: any) => number),
+  a: StateMachine
 ): Rule {
   let tlimitFn: any;
   if (_.isFinite(timeLimit)) {

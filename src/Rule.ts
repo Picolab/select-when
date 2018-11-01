@@ -11,15 +11,14 @@ export class Rule {
   }
 
   public saliance: Saliance[] = [{}]; // default to *:*
+
   public matcher: MatcherFn = function(event: Event, state: any) {
     return { match: true, state };
   };
 
-  private queue = PromiseSeries();
+  private queue = PromiseSeries<boolean>();
 
-  constructor() {}
-
-  select(event: Event) {
+  select(event: Event): Promise<boolean> {
     return this.queue(() => {
       return Promise.resolve(this.matcher(event, this.state)).then(resp => {
         this._state = Object.freeze(resp.state);

@@ -227,7 +227,7 @@ test("repeat", function(t) {
 });
 
 test("within", async function(t) {
-  let matcher = within(before(e("foo"), e("bar")), 100).matcher;
+  let matcher = within(100, before(e("foo"), e("bar"))).matcher;
 
   let r0 = await Promise.resolve(matcher({ name: "foo", time: 100 }, null));
   t.deepEqual(r0, {
