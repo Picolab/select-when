@@ -1,7 +1,7 @@
 import * as _ from "lodash";
 import test from "ava";
 import cleanEvent from "../src/cleanEvent";
-import { Event } from "../src/base";
+import { Event } from "../src/types";
 
 test("clean event", function(t) {
   function tst(event: any): Event | string {

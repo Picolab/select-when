@@ -1,7 +1,7 @@
 import * as _ from "lodash";
 import test from "ava";
 import { StateMachine } from "../src/StateMachine";
-import { Event, TransitionEvent_event } from "../src/base";
+import { Event, TransitionEvent_event } from "../src/types";
 
 function mkE(name: string): TransitionEvent_event {
   return { kind: "event", domain: name, name: name };
