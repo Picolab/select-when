@@ -256,4 +256,35 @@ test("within", async function(t) {
       }
     }
   );
+
+  let didPromiseMode = false;
+  matcher = within(function(event) {
+    if (event.name === "foo") {
+      return 100;
+    }
+    return new Promise(function(resolve) {
+      setTimeout(function() {
+        didPromiseMode = true;
+        resolve(1000);
+      }, 10);
+    });
+  }, before(e("foo"), e("bar"))).matcher;
+
+  t.deepEqual(await matcher({ name: "foo", time: 110 }, {}), {
+    match: false,
+    state: { starttime: 110, states: ["s0"] }
+  });
+  t.false(didPromiseMode);
+
+  t.deepEqual(
+    await matcher(
+      { name: "bar", time: 510 },
+      { starttime: 110, states: ["s0"] }
+    ),
+    {
+      match: true,
+      state: { starttime: 110, states: ["end"] }
+    }
+  );
+  t.true(didPromiseMode);
 });

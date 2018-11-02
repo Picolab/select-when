@@ -8,8 +8,11 @@
   },
   "keywords": [
     "event",
-    "microservice",
     "event-sourcing",
+    "krl",
+    "pico",
+    "actor",
+    "microservice",
     "pattern-matching"
   ],
   "author": "Picolab",
@@ -18,6 +21,7 @@
     "url": "https://github.com/Picolab/select-when/issues"
   },
   "homepage": "https://github.com/Picolab/select-when#readme",
+  "files": ["dist"],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -36,11 +40,7 @@
   },
   "ava": {
     "compileEnhancements": false,
-    "extensions": [
-      "ts"
-    ],
-    "require": [
-      "ts-node/register"
-    ]
+    "extensions": ["ts"],
+    "require": ["ts-node/register"]
   }
 }

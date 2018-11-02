@@ -280,7 +280,7 @@ export function repeat(num: number, eventex: StateMachine) {
 }
 
 export function within(
-  timeLimit: number | ((event: any, state: any) => number),
+  timeLimit: number | ((event: any, state: any) => number | Promise<number>),
   a: StateMachine
 ): Rule {
   let tlimitFn: any;
@@ -299,13 +299,13 @@ export function within(
   let rule = new Rule();
   rule.saliance = a.getSaliance();
   let matcher = a.toMatcher();
-  rule.matcher = function(event: any, state?: any) {
+  rule.matcher = async function(event, state) {
     let starttime = _.isInteger(state && state.starttime)
       ? state.starttime
       : event.time;
 
     let timeSinceLast = event.time - starttime;
-    let tlimit = tlimitFn(event, state);
+    let tlimit = await tlimitFn(event, state);
 
     let stmStates = _.filter(
       _.flattenDeep([state && state.states]),

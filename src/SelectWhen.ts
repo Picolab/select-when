@@ -1,5 +1,5 @@
 import * as _ from "lodash";
-import cleanEvent from "../src/cleanEvent";
+import cleanEvent from "./cleanEvent";
 import { StateMachine } from "./StateMachine";
 import { Rule } from "./Rule";
 import { PromiseSeries } from "./PromiseSeries";

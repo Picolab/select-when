@@ -40,7 +40,7 @@ For example:
 
 - When aaa **or** bbb signals `or(e("aaa"), e("bbb"))`
 - When aaa comes **after** bbb `after(e("aaa"), e("bbb"))`
-- When **any 2** of these 2 events happen **within 1 second** `within(1000, any(2, e("a1"), e("a2"), e("a3")))`
+- When **any 2** of these 3 events happen **within 1 second** `within(1000, any(2, e("a1"), e("a2"), e("a3")))`
 
 #### Organize code and execution into Rulesets
 
@@ -76,7 +76,7 @@ One can use strings as a shorthand for representing events.
 ## Example
 
 ```js
-import { SelectWhen, e, or, then } from "./src";
+import { SelectWhen, e, or, then } from "select-when";
 
 let rs = new SelectWhen();
 
