@@ -4,7 +4,7 @@ import cleanEvent from "../src/cleanEvent";
 import { Event } from "../src/types";
 
 test("clean event", function(t) {
-  function tst(event: any): Event | string {
+  function tst(event: any): Event<any> | string {
     try {
       return cleanEvent(event);
     } catch (e) {
@@ -13,7 +13,7 @@ test("clean event", function(t) {
   }
 
   t.is(tst(""), "TypeError: event.name must be a string");
-  t.deepEqual(_.omit(cleanEvent(" a "), "time"), {
+  t.deepEqual(_.omit(cleanEvent<any>(" a "), "time"), {
     domain: null,
     name: "a",
     data: null
@@ -30,8 +30,12 @@ test("clean event", function(t) {
     }
   );
 
-  let event = cleanEvent("a");
-  t.deepEqual(_.omit(event, "time"), { domain: null, name: "a", data: null });
+  let event = cleanEvent<any>("a");
+  t.deepEqual(_.omit(event, "time"), {
+    domain: null,
+    name: "a",
+    data: null
+  });
   t.true(Object.isFrozen(event));
   t.throws(function() {
     event.name = "b";

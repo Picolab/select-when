@@ -1,64 +1,68 @@
-export interface Event {
+export interface Event<DataT> {
   domain?: string | null;
   name: string;
-  data?: any;
+  data?: DataT | null;
   time: number;
 }
 
 export type Saliance = { domain?: string; name?: string };
 
-export interface MatcherRet {
+export interface MatcherRet<StateT> {
   match: boolean;
-  state: any;
+  state: StateT | undefined | null;
 }
 
-export type MatcherFn = (
-  event: Event,
-  state: any
-) => MatcherRet | Promise<MatcherRet>;
+export type MatcherFn<DataT, StateT> = (
+  event: Event<DataT>,
+  state: StateT | undefined | null
+) => MatcherRet<StateT> | Promise<MatcherRet<StateT>>;
 
-export interface EventPattern {
+export interface EventPattern<DataT, StateT> {
   domain: string;
   name: string;
-  matcher?: MatcherFn;
+  matcher?: MatcherFn<DataT, StateT>;
 }
 
 export interface TransitionEvent_base {}
 
-export interface TransitionEvent_event extends TransitionEvent_base {
+export interface TransitionEvent_event<DataT, StateT>
+  extends TransitionEvent_base {
   kind: "event";
   domain?: string;
   name: string;
-  matcher?: MatcherFn;
+  matcher?: MatcherFn<DataT, StateT>;
 }
 
-export interface TransitionEvent_not extends TransitionEvent_base {
+export interface TransitionEvent_not<DataT, StateT>
+  extends TransitionEvent_base {
   kind: "not";
-  right: TransitionEvent;
+  right: TransitionEvent<DataT, StateT>;
 }
 
-export interface TransitionEvent_or extends TransitionEvent_base {
+export interface TransitionEvent_or<DataT, StateT>
+  extends TransitionEvent_base {
   kind: "or";
-  left: TransitionEvent;
-  right: TransitionEvent;
+  left: TransitionEvent<DataT, StateT>;
+  right: TransitionEvent<DataT, StateT>;
 }
 
-export interface TransitionEvent_and extends TransitionEvent_base {
+export interface TransitionEvent_and<DataT, StateT>
+  extends TransitionEvent_base {
   kind: "and";
-  left: TransitionEvent;
-  right: TransitionEvent;
+  left: TransitionEvent<DataT, StateT>;
+  right: TransitionEvent<DataT, StateT>;
 }
 
 // wrapped in an interfaces b/c `type` can't be self-referential
-export type TransitionEvent =
-  | TransitionEvent_event
-  | TransitionEvent_not
-  | TransitionEvent_or
-  | TransitionEvent_and;
+export type TransitionEvent<DataT, StateT> =
+  | TransitionEvent_event<DataT, StateT>
+  | TransitionEvent_not<DataT, StateT>
+  | TransitionEvent_or<DataT, StateT>
+  | TransitionEvent_and<DataT, StateT>;
 
-export interface Transition {
+export interface Transition<DataT, StateT> {
   from: string;
-  on: TransitionEvent;
+  on: TransitionEvent<DataT, StateT>;
   to: string;
 }
 

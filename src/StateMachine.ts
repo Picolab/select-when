@@ -16,15 +16,15 @@ function genState() {
 
 type CompiledStateMachine = { [state: string]: [any, string][] };
 
-export class StateMachine {
+export class StateMachine<DataT, StateT> {
   public readonly start = genState();
   public readonly end = genState();
   private transitions: TransitionCompact[] = [];
 
-  private events: { [key: string]: TransitionEvent_event } = {};
-  private efns: MatcherFn[] = [];
+  private events: { [key: string]: TransitionEvent_event<DataT, StateT> } = {};
+  private efns: MatcherFn<DataT, StateT>[] = [];
 
-  private addEvent(e: TransitionEvent): string {
+  private addEvent(e: TransitionEvent<DataT, StateT>): string {
     switch (e.kind) {
       case "not":
         return `["not",${this.addEvent(e.right)}]`;
@@ -33,7 +33,7 @@ export class StateMachine {
       case "and":
         return `["and",${this.addEvent(e.left)},${this.addEvent(e.right)}]`;
       case "event":
-        let event: TransitionEvent_event = {
+        let event: TransitionEvent_event<DataT, StateT> = {
           kind: "event",
           domain: e.domain || "*",
           name: e.name || "*"
@@ -55,7 +55,11 @@ export class StateMachine {
     }
   }
 
-  add(fromState: string, onEvent: TransitionEvent, toState: string) {
+  add(
+    fromState: string,
+    onEvent: TransitionEvent<DataT, StateT>,
+    toState: string
+  ) {
     this.transitions.push({
       from: fromState,
       on: this.addEvent(onEvent),
@@ -63,7 +67,7 @@ export class StateMachine {
     });
   }
 
-  concat(other: StateMachine) {
+  concat(other: StateMachine<DataT, StateT>) {
     _.each(other.getTransitions(), t => {
       this.add(t.from, t.on, t.to);
     });
@@ -80,7 +84,7 @@ export class StateMachine {
     });
   }
 
-  getEvent(lisp: any): TransitionEvent {
+  getEvent(lisp: any): TransitionEvent<DataT, StateT> {
     if (_.isArray(lisp)) {
       switch (lisp[0]) {
         case "not":
@@ -107,7 +111,7 @@ export class StateMachine {
     return this.events[lisp];
   }
 
-  getTransitions(): Transition[] {
+  getTransitions(): Transition<DataT, StateT>[] {
     return this.transitions.map(t => {
       return { from: t.from, on: this.getEvent(JSON.parse(t.on)), to: t.to };
     });
@@ -220,7 +224,7 @@ export class StateMachine {
   }
 
   clone() {
-    let stm = new StateMachine();
+    let stm = new StateMachine<DataT, StateT>();
     let stateMap: { [old: string]: string } = {};
     stateMap[this.start] = stm.start;
     stateMap[this.end] = stm.end;
@@ -246,19 +250,19 @@ export class StateMachine {
     });
   }
 
-  toMatcher(): MatcherFn {
+  toMatcher(): MatcherFn<DataT, StateT> {
     let stm = this.compile(true);
-    return function(event: Event, state?: any) {
+    return function(event: Event<DataT>, state?: any) {
       return stmMatcher(stm, event, state);
     };
   }
 }
 
-async function stmMatcher(
+async function stmMatcher<DataT, StateT>(
   stm: CompiledStateMachine,
-  event: Event,
+  event: Event<DataT>,
   state: any
-): Promise<MatcherRet> {
+): Promise<MatcherRet<StateT>> {
   let stmStates = _.filter(_.flattenDeep([state && state.states]), function(
     st
   ) {
@@ -300,11 +304,11 @@ async function stmMatcher(
   };
 }
 
-async function evalExpr(
-  expr: TransitionEvent,
-  event: Event,
+async function evalExpr<DataT, StateT>(
+  expr: TransitionEvent<DataT, StateT>,
+  event: Event<DataT>,
   state: any
-): Promise<MatcherRet> {
+): Promise<MatcherRet<StateT>> {
   let left;
   switch (expr.kind) {
     case "event":

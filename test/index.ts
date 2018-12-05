@@ -9,18 +9,18 @@ function sleep(ms: number) {
 }
 
 test("basics", async function(t) {
-  let rs = new SelectWhen();
+  let rs = new SelectWhen<null, { n: number }>();
 
   let matches: [any, any][] = [];
 
-  let rule = new Rule();
+  let rule = new Rule<null, { n: number }>();
   rule.state = { n: 0 };
   rule.matcher = function(event, state) {
     t.true(Object.isFrozen(event));
     t.true(Object.isFrozen(state));
     return {
       match: true,
-      state: { n: state.n + 1 }
+      state: state ? { n: state.n + 1 } : { n: 1 }
     };
   };
 
@@ -97,14 +97,15 @@ test("saliance graph", async function(t) {
 });
 
 test("async matcher", async function(t) {
-  let rs = new SelectWhen();
+  let rs = new SelectWhen<null, { n: number }>();
 
   let preMatch: string[] = [];
   let matches: string[] = [];
 
-  let rule = new Rule();
+  let rule = new Rule<null, { n: number }>();
   rule.state = { n: 0 };
   rule.matcher = async function(event, state) {
+    state = state || { n: 0 };
     preMatch.push(event.name + "-" + state.n);
     await sleep(1);
     return {
@@ -114,6 +115,7 @@ test("async matcher", async function(t) {
   };
 
   rs.when(rule, function(event, state) {
+    state = state || { n: 0 };
     matches.push(event.name + "-" + state.n);
   });
 

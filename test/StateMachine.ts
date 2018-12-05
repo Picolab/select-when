@@ -3,7 +3,7 @@ import test from "ava";
 import { StateMachine } from "../src/StateMachine";
 import { Event, TransitionEvent_event } from "../src/types";
 
-function mkE(name: string): TransitionEvent_event {
+function mkE(name: string): TransitionEvent_event<any, any> {
   return { kind: "event", domain: name, name: name };
 }
 
@@ -18,7 +18,7 @@ test("stm.getSaliance()", function(t) {
       kind: "event",
       domain: "baz",
       name: "qux",
-      matcher: function(event: Event, state: any) {
+      matcher: function(event: Event<any>, state: any) {
         return { match: true, state };
       }
     },
@@ -97,9 +97,9 @@ test("stm.optimize() merge states, but don't interfere with other paths.", funct
 test("StateMachine unique events and matcher function management", function(t) {
   let stm = new StateMachine();
 
-  let fn0 = (event: Event, state: any) => ({ match: true, state });
-  let fn1 = (event: Event, state: any) => ({ match: true, state });
-  let fn2 = (event: Event, state: any) => ({ match: true, state });
+  let fn0 = (event: Event<any>, state: any) => ({ match: true, state });
+  let fn1 = (event: Event<any>, state: any) => ({ match: true, state });
+  let fn2 = (event: Event<any>, state: any) => ({ match: true, state });
 
   stm.add(stm.start, { kind: "event", domain: "*", name: "aaa" }, stm.end);
   stm.add(stm.start, { kind: "event", name: "aaa" }, stm.end);

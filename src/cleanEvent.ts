@@ -5,7 +5,7 @@ function notBlankStr(str: any): boolean {
   return typeof str === "string" && str.trim().length > 0;
 }
 
-export default function cleanEvent(eventIn: any): Event {
+export default function cleanEvent<DataT>(eventIn: any): Event<DataT> {
   if (typeof eventIn === "string" && notBlankStr(eventIn)) {
     let parts = eventIn.split(":");
     eventIn = {};
@@ -17,7 +17,7 @@ export default function cleanEvent(eventIn: any): Event {
     }
   }
 
-  let event: Event = {
+  let event: Event<DataT> = {
     domain: null,
     name: "",
     data: null,

@@ -1,9 +1,11 @@
 import * as _ from "lodash";
 import { StateMachine } from "./StateMachine";
 import { Rule } from "./Rule";
-import { MatcherFn, TransitionEvent } from "./types";
+import { Event, MatcherFn, TransitionEvent } from "./types";
 
-function wrapInOr(states: TransitionEvent[]): TransitionEvent {
+function wrapInOr<DataT, StateT>(
+  states: TransitionEvent<DataT, StateT>[]
+): TransitionEvent<DataT, StateT> {
   if (states.length === 1) {
     return states[0];
   }
@@ -33,7 +35,10 @@ function permute(arr: any[]): any[] {
   }, []);
 }
 
-export function e(dt: string, matcher?: MatcherFn) {
+export function e<DataT, StateT>(
+  dt: string,
+  matcher?: MatcherFn<DataT, StateT>
+) {
   let domain;
   let name;
   let parts = dt.split(":");
@@ -45,19 +50,22 @@ export function e(dt: string, matcher?: MatcherFn) {
     name = parts[0];
   }
 
-  let eee: TransitionEvent = {
+  let eee: TransitionEvent<DataT, StateT> = {
     kind: "event",
     domain: domain,
     name: name,
     matcher: matcher
   };
-  let s = new StateMachine();
+  let s = new StateMachine<DataT, StateT>();
   s.add(s.start, eee, s.end);
   return s;
 }
 
-export function or(a: StateMachine, b: StateMachine) {
-  let s = new StateMachine();
+export function or<DataT, StateT>(
+  a: StateMachine<DataT, StateT>,
+  b: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   s.concat(a);
   s.concat(b);
@@ -70,8 +78,11 @@ export function or(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-export function and(a0: StateMachine, b0: StateMachine) {
-  let s = new StateMachine();
+export function and<DataT, StateT>(
+  a0: StateMachine<DataT, StateT>,
+  b0: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   let a1 = a0.clone();
   let b1 = b0.clone();
@@ -93,8 +104,11 @@ export function and(a0: StateMachine, b0: StateMachine) {
   return s;
 }
 
-export function before(a: StateMachine, b: StateMachine) {
-  let s = new StateMachine();
+export function before<DataT, StateT>(
+  a: StateMachine<DataT, StateT>,
+  b: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   s.concat(a);
   s.join(a.start, s.start);
@@ -107,8 +121,11 @@ export function before(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-export function then(a: StateMachine, b: StateMachine) {
-  let s = new StateMachine();
+export function then<DataT, StateT>(
+  a: StateMachine<DataT, StateT>,
+  b: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   s.concat(a);
   s.concat(b);
@@ -120,7 +137,7 @@ export function then(a: StateMachine, b: StateMachine) {
   let transitions = s.getTransitions();
   let bTEvents = _(transitions)
     .map(
-      (t): TransitionEvent | undefined => {
+      (t): TransitionEvent<DataT, StateT> | undefined => {
         if (t.from === b.start) {
           return { kind: "not", right: t.on };
         }
@@ -137,8 +154,11 @@ export function then(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-export function after(a: StateMachine, b: StateMachine) {
-  let s = new StateMachine();
+export function after<DataT, StateT>(
+  a: StateMachine<DataT, StateT>,
+  b: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   s.concat(a);
   s.concat(b);
@@ -151,8 +171,12 @@ export function after(a: StateMachine, b: StateMachine) {
   return s;
 }
 
-export function between(a: StateMachine, b: StateMachine, c: StateMachine) {
-  let s = new StateMachine();
+export function between<DataT, StateT>(
+  a: StateMachine<DataT, StateT>,
+  b: StateMachine<DataT, StateT>,
+  c: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   s.concat(a);
   s.concat(b);
@@ -167,8 +191,12 @@ export function between(a: StateMachine, b: StateMachine, c: StateMachine) {
   return s;
 }
 
-export function notBetween(a: StateMachine, b: StateMachine, c: StateMachine) {
-  let s = new StateMachine();
+export function notBetween<DataT, StateT>(
+  a: StateMachine<DataT, StateT>,
+  b: StateMachine<DataT, StateT>,
+  c: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
   s.concat(a);
   s.concat(b);
@@ -187,7 +215,10 @@ export function notBetween(a: StateMachine, b: StateMachine, c: StateMachine) {
   return s;
 }
 
-export function any(num: number, ...eventexs: StateMachine[]) {
+export function any<DataT, StateT>(
+  num: number,
+  ...eventexs: StateMachine<DataT, StateT>[]
+) {
   if (!_.isInteger(num)) {
     throw new TypeError("`any` expects first arg to be an integer");
   }
@@ -197,7 +228,7 @@ export function any(num: number, ...eventexs: StateMachine[]) {
     );
   }
 
-  let s = new StateMachine();
+  let s = new StateMachine<DataT, StateT>();
 
   let indicesGroups = _.uniqWith(
     _.map(permute(_.range(0, _.size(eventexs))), function(indices) {
@@ -207,7 +238,7 @@ export function any(num: number, ...eventexs: StateMachine[]) {
   );
 
   _.each(indicesGroups, function(indices) {
-    let prev: StateMachine;
+    let prev: StateMachine<DataT, StateT>;
     _.each(indices, function(i: any, j) {
       let a = eventexs[i].clone();
       s.concat(a);
@@ -228,10 +259,13 @@ export function any(num: number, ...eventexs: StateMachine[]) {
   return s;
 }
 
-export function count(num: number, eventex: StateMachine) {
-  let s = new StateMachine();
+export function count<DataT, StateT>(
+  num: number,
+  eventex: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
-  let prev: StateMachine;
+  let prev: StateMachine<DataT, StateT>;
   _.each(_.range(0, num), function(i, j) {
     let a = eventex.clone();
     s.concat(a);
@@ -251,10 +285,13 @@ export function count(num: number, eventex: StateMachine) {
   return s;
 }
 
-export function repeat(num: number, eventex: StateMachine) {
-  let s = new StateMachine();
+export function repeat<DataT, StateT>(
+  num: number,
+  eventex: StateMachine<DataT, StateT>
+) {
+  let s = new StateMachine<DataT, StateT>();
 
-  let prev: StateMachine;
+  let prev: StateMachine<DataT, StateT>;
   _.each(_.range(0, num), function(i, j) {
     let a = eventex.clone();
     s.concat(a);
@@ -279,10 +316,17 @@ export function repeat(num: number, eventex: StateMachine) {
   return s;
 }
 
-export function within(
-  timeLimit: number | ((event: any, state: any) => number | Promise<number>),
-  a: StateMachine
-): Rule {
+interface WithinStateShape {
+  starttime?: number;
+  states?: string[];
+}
+
+export function within<DataT, StateT extends WithinStateShape>(
+  timeLimit:
+    | number
+    | ((event: Event<DataT>, state: StateT) => number | Promise<number>),
+  a: StateMachine<DataT, StateT>
+): Rule<DataT, StateT> {
   let tlimitFn: any;
   if (_.isFinite(timeLimit)) {
     tlimitFn = function() {
@@ -296,13 +340,11 @@ export function within(
     );
   }
 
-  let rule = new Rule();
+  let rule = new Rule<DataT, StateT>();
   rule.saliance = a.getSaliance();
   let matcher = a.toMatcher();
   rule.matcher = async function(event, state) {
-    let starttime = _.isInteger(state && state.starttime)
-      ? state.starttime
-      : event.time;
+    let starttime = state && state.starttime ? state.starttime : event.time;
 
     let timeSinceLast = event.time - starttime;
     let tlimit = await tlimitFn(event, state);
@@ -319,12 +361,11 @@ export function within(
       // set or reset the clock
       starttime = event.time;
     }
-    state = Object.freeze(
-      Object.assign({}, state, {
-        states: stmStates,
-        starttime: starttime
-      })
-    );
+    state = Object.assign({}, state, {
+      states: stmStates,
+      starttime: starttime
+    });
+    Object.freeze(state);
     return matcher(event, state);
   };
 

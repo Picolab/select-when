@@ -5,17 +5,20 @@ import { Rule } from "./Rule";
 import { PromiseSeries } from "./PromiseSeries";
 import { Event, Saliance } from "./types";
 
-export type WhenBody = (event: Event, state: any) => any;
+export type WhenBody<DataT, StateT> = (
+  event: Event<DataT>,
+  state: StateT | undefined
+) => any;
 
-export interface When {
+export interface When<DataT, StateT> {
   readonly id: string;
   readonly order: number;
-  readonly rule: Rule;
-  readonly body: WhenBody;
+  readonly rule: Rule<DataT, StateT>;
+  readonly body: WhenBody<DataT, StateT>;
 }
 
-export class SelectWhen {
-  private rules: { [id: string]: When } = {};
+export class SelectWhen<DataT, StateT> {
+  private rules: { [id: string]: When<DataT, StateT> } = {};
   private salianceGraph: {
     [domain: string]: { [name: string]: string[] };
   } = {};
@@ -34,10 +37,13 @@ export class SelectWhen {
     this.salianceGraph[domain][name].push(id);
   }
 
-  when(rule: Rule | StateMachine, body: WhenBody): When {
+  when(
+    rule: Rule<DataT, StateT> | StateMachine<DataT, StateT>,
+    body: WhenBody<DataT, StateT>
+  ): When<DataT, StateT> {
     if (rule instanceof StateMachine) {
       let stm = rule;
-      rule = new Rule();
+      rule = new Rule<DataT, StateT>();
       rule.saliance = stm.getSaliance();
       rule.matcher = stm.toMatcher();
     }

@@ -29,13 +29,13 @@
   "scripts": {
     "prepublish": "npm run build",
     "build": "rm -rf dist && tsc",
-    "test": "ava"
+    "test": "ava --reset-cache && ava"
   },
   "devDependencies": {
-    "@types/lodash": "^4.14.117",
-    "ava": "^1.0.0-rc.1",
+    "@types/lodash": "^4.14.119",
+    "ava": "^1.0.0-rc.2",
     "ts-node": "^7.0.1",
-    "typescript": "^3.1.5"
+    "typescript": "^3.2.1"
   },
   "dependencies": {
     "lodash": "^4.17.11"
