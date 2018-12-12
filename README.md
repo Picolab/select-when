@@ -51,7 +51,7 @@ Create a set of rules to run serially in the order they are declared. This makes
 Events in this system are simple json objects that have 4 parts. The `domain`, `name`, `data` and `time`.
 
 ```typescript
-interface Event {
+interface Event<DataT> {
   // The domain/namespace of the event, this is optional
   domain?: string;
 
@@ -59,7 +59,7 @@ interface Event {
   name: string;
 
   // Payload data of any kind to go with the event
-  data: any;
+  data?: DataT;
 
   // a unix timestamp, number of milliseconds since Jan 1, 1970 UTC
   time: int; // defaults to Date.now()

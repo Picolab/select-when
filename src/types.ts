@@ -7,6 +7,10 @@ export interface Event<DataT> {
 
 export type Saliance = { domain?: string; name?: string };
 
+export interface StateShape {
+  states?: string[];
+}
+
 export interface MatcherRet<StateT> {
   match: boolean;
   state: StateT | undefined | null;

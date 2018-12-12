@@ -1,7 +1,7 @@
 import * as _ from "lodash";
 import { StateMachine } from "./StateMachine";
 import { Rule } from "./Rule";
-import { Event, MatcherFn, TransitionEvent } from "./types";
+import { Event, MatcherFn, TransitionEvent, StateShape } from "./types";
 
 function wrapInOr<DataT, StateT>(
   states: TransitionEvent<DataT, StateT>[]
@@ -19,18 +19,16 @@ function wrapInOr<DataT, StateT>(
 /**
  * Get all permutations of a given array
  */
-function permute(arr: any[]): any[] {
-  return arr.reduce(function permute(res, item, key, arr): any {
+function permute<T>(arr: T[]): T[][] {
+  return arr.reduce(function permute(res: T[][], item, key, arr): T[][] {
     return res.concat(
       arr.length > 1
         ? arr
             .slice(0, key)
             .concat(arr.slice(key + 1))
             .reduce(permute, [])
-            .map(function(perm: any) {
-              return [item].concat(perm);
-            })
-        : item
+            .map(perm => [item].concat(perm))
+        : [item]
     );
   }, []);
 }
@@ -239,7 +237,7 @@ export function any<DataT, StateT>(
 
   _.each(indicesGroups, function(indices) {
     let prev: StateMachine<DataT, StateT>;
-    _.each(indices, function(i: any, j) {
+    _.each(indices, function(i, j) {
       let a = eventexs[i].clone();
       s.concat(a);
       if (j === 0) {
@@ -316,22 +314,22 @@ export function repeat<DataT, StateT>(
   return s;
 }
 
-interface WithinStateShape {
+interface WithinStateShape extends StateShape {
   starttime?: number;
-  states?: string[];
 }
 
+type TimeLimitFn<DataT, StateT extends WithinStateShape> = ((
+  event: Event<DataT>,
+  state: StateT | null | undefined
+) => number | Promise<number>);
+
 export function within<DataT, StateT extends WithinStateShape>(
-  timeLimit:
-    | number
-    | ((event: Event<DataT>, state: StateT) => number | Promise<number>),
+  timeLimit: number | TimeLimitFn<DataT, StateT>,
   a: StateMachine<DataT, StateT>
 ): Rule<DataT, StateT> {
-  let tlimitFn: any;
-  if (_.isFinite(timeLimit)) {
-    tlimitFn = function() {
-      return timeLimit;
-    };
+  let tlimitFn: TimeLimitFn<DataT, StateT>;
+  if (typeof timeLimit === "number" && _.isFinite(timeLimit)) {
+    tlimitFn = () => timeLimit;
   } else if (_.isFunction(timeLimit)) {
     tlimitFn = timeLimit;
   } else {

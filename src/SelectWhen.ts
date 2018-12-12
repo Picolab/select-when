@@ -5,20 +5,20 @@ import { Rule } from "./Rule";
 import { PromiseSeries } from "./PromiseSeries";
 import { Event, Saliance } from "./types";
 
-export type WhenBody<DataT, StateT> = (
+export type WhenBody<DataT, StateT, WhenReturnT> = (
   event: Event<DataT>,
-  state: StateT | undefined
-) => any;
+  state: StateT | null | undefined
+) => WhenReturnT;
 
-export interface When<DataT, StateT> {
+export interface When<DataT, StateT, WhenReturnT> {
   readonly id: string;
   readonly order: number;
   readonly rule: Rule<DataT, StateT>;
-  readonly body: WhenBody<DataT, StateT>;
+  readonly body: WhenBody<DataT, StateT, WhenReturnT>;
 }
 
-export class SelectWhen<DataT, StateT> {
-  private rules: { [id: string]: When<DataT, StateT> } = {};
+export class SelectWhen<DataT, StateT, WhenReturnT> {
+  private rules: { [id: string]: When<DataT, StateT, WhenReturnT> } = {};
   private salianceGraph: {
     [domain: string]: { [name: string]: string[] };
   } = {};
@@ -39,8 +39,8 @@ export class SelectWhen<DataT, StateT> {
 
   when(
     rule: Rule<DataT, StateT> | StateMachine<DataT, StateT>,
-    body: WhenBody<DataT, StateT>
-  ): When<DataT, StateT> {
+    body: WhenBody<DataT, StateT, WhenReturnT>
+  ): When<DataT, StateT, WhenReturnT> {
     if (rule instanceof StateMachine) {
       let stm = rule;
       rule = new Rule<DataT, StateT>();
@@ -73,7 +73,7 @@ export class SelectWhen<DataT, StateT> {
     return result;
   }
 
-  private sendQueue = PromiseSeries<{ id: string; data: any }[]>();
+  private sendQueue = PromiseSeries<{ id: string; data: WhenReturnT }[]>();
   send(event: any) {
     event = cleanEvent(event);
 

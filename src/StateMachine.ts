@@ -7,14 +7,17 @@ import {
   TransitionCompact,
   TransitionEvent_event,
   TransitionEvent,
-  Saliance
+  Saliance,
+  StateShape
 } from "./types";
 
 function genState() {
   return _.uniqueId("s");
 }
 
-type CompiledStateMachine = { [state: string]: [any, string][] };
+type CompiledStateMachine<DataT, StateT> = {
+  [state: string]: [TransitionEvent<DataT, StateT>, string][];
+};
 
 export class StateMachine<DataT, StateT> {
   public readonly start = genState();
@@ -177,7 +180,7 @@ export class StateMachine<DataT, StateT> {
     });
   }
 
-  compile(expandExpr: boolean = false): CompiledStateMachine {
+  compile(expandExpr: boolean = false): CompiledStateMachine<DataT, StateT> {
     // we want to ensure we get the same output on every compile
     // that is why we are re-naming states and sorting the output
     let outStates: { [old: string]: string } = {};
@@ -209,7 +212,7 @@ export class StateMachine<DataT, StateT> {
         return score;
       })
       .value();
-    let stm: CompiledStateMachine = {};
+    let stm: CompiledStateMachine<DataT, StateT> = {};
     _.each(outTransitions, t => {
       if (!_.has(stm, t.from)) {
         stm[t.from] = [];
@@ -252,22 +255,21 @@ export class StateMachine<DataT, StateT> {
 
   toMatcher(): MatcherFn<DataT, StateT> {
     let stm = this.compile(true);
-    return function(event: Event<DataT>, state?: any) {
+    return function(event: Event<DataT>, state: StateT | undefined | null) {
       return stmMatcher(stm, event, state);
     };
   }
 }
 
-async function stmMatcher<DataT, StateT>(
-  stm: CompiledStateMachine,
+async function stmMatcher<DataT, StateT extends StateShape>(
+  stm: CompiledStateMachine<DataT, StateT>,
   event: Event<DataT>,
-  state: any
+  state: StateT | null | undefined
 ): Promise<MatcherRet<StateT>> {
-  let stmStates = _.filter(_.flattenDeep([state && state.states]), function(
-    st
-  ) {
-    return _.has(stm, st);
-  });
+  let stateStates: string[] =
+    state && _.isArray(state.states) ? state.states : [];
+  let stmStates = stateStates.filter(st => _.has(stm, st));
+
   if (stmStates.length === 0) {
     stmStates = ["start"];
   }
@@ -276,7 +278,7 @@ async function stmMatcher<DataT, StateT>(
   let matches = [];
   for (let cstate of stmStates) {
     for (let [expr, stmState] of stm[cstate]) {
-      let m = await evalExpr(expr, event, state);
+      let m: MatcherRet<StateT> = await evalExpr(expr, event, state);
       state = m.state;
       if (m.match === true) {
         // found a match
@@ -304,10 +306,10 @@ async function stmMatcher<DataT, StateT>(
   };
 }
 
-async function evalExpr<DataT, StateT>(
+async function evalExpr<DataT, StateT extends StateShape>(
   expr: TransitionEvent<DataT, StateT>,
   event: Event<DataT>,
-  state: any
+  state: StateT | null | undefined
 ): Promise<MatcherRet<StateT>> {
   let left;
   switch (expr.kind) {
