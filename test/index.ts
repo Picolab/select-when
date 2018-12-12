@@ -214,7 +214,7 @@ test("async matcher per rule", async function(t) {
 });
 
 test("send rule results", async function(t) {
-  let rs = new SelectWhen();
+  let rs = new SelectWhen<{}, {}, string>();
 
   let rule0 = new Rule();
   rule0.matcher = async function(event, state) {

@@ -15,8 +15,8 @@ function genState() {
   return _.uniqueId("s");
 }
 
-type CompiledStateMachine<DataT, StateT> = {
-  [state: string]: [TransitionEvent<DataT, StateT>, string][];
+type CompiledStateMachine = {
+  [state: string]: [any, string][];
 };
 
 export class StateMachine<DataT, StateT> {
@@ -180,7 +180,7 @@ export class StateMachine<DataT, StateT> {
     });
   }
 
-  compile(expandExpr: boolean = false): CompiledStateMachine<DataT, StateT> {
+  compile(expandExpr: boolean = false): CompiledStateMachine {
     // we want to ensure we get the same output on every compile
     // that is why we are re-naming states and sorting the output
     let outStates: { [old: string]: string } = {};
@@ -212,7 +212,7 @@ export class StateMachine<DataT, StateT> {
         return score;
       })
       .value();
-    let stm: CompiledStateMachine<DataT, StateT> = {};
+    let stm: CompiledStateMachine = {};
     _.each(outTransitions, t => {
       if (!_.has(stm, t.from)) {
         stm[t.from] = [];
@@ -262,7 +262,7 @@ export class StateMachine<DataT, StateT> {
 }
 
 async function stmMatcher<DataT, StateT extends StateShape>(
-  stm: CompiledStateMachine<DataT, StateT>,
+  stm: CompiledStateMachine,
   event: Event<DataT>,
   state: StateT | null | undefined
 ): Promise<MatcherRet<StateT>> {

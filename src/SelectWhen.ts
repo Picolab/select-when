@@ -8,7 +8,7 @@ import { Event, Saliance } from "./types";
 export type WhenBody<DataT, StateT, WhenReturnT> = (
   event: Event<DataT>,
   state: StateT | null | undefined
-) => WhenReturnT;
+) => WhenReturnT | Promise<WhenReturnT>;
 
 export interface When<DataT, StateT, WhenReturnT> {
   readonly id: string;
@@ -17,7 +17,7 @@ export interface When<DataT, StateT, WhenReturnT> {
   readonly body: WhenBody<DataT, StateT, WhenReturnT>;
 }
 
-export class SelectWhen<DataT, StateT, WhenReturnT> {
+export class SelectWhen<DataT, StateT, WhenReturnT = void> {
   private rules: { [id: string]: When<DataT, StateT, WhenReturnT> } = {};
   private salianceGraph: {
     [domain: string]: { [name: string]: string[] };
