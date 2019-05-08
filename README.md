@@ -250,7 +250,7 @@ a // match
 
 The same as `count` except once it matches, it will always match on `a`
 
-For example: `count(3, e("a"))`
+For example: `repeat(3, e("a"))`
 
 ```
 a
