@@ -80,9 +80,9 @@ export class SelectWhen<DataT, StateT, WhenReturnT = void> {
     return this.sendQueue(async () => {
       let salient: string[] = _.uniq(
         _.get(this.salianceGraph, [event.domain, event.name], [])
-          .concat(_.get(this.salianceGraph, [event.domain, "*"], []))
-          .concat(_.get(this.salianceGraph, ["*", event.name], []))
-          .concat(_.get(this.salianceGraph, ["*", "*"], []))
+          .concat(_.get(this.salianceGraph, [event.domain, "*"], []) as any)
+          .concat(_.get(this.salianceGraph, ["*", event.name], []) as any)
+          .concat(_.get(this.salianceGraph, ["*", "*"], []) as any)
       );
 
       let salientRules = _.sortBy(salient.map(id => this.rules[id]), "order");
