@@ -22,11 +22,10 @@ export class Rule<DataT, StateT> {
   private queue = PromiseSeries<boolean>();
 
   select(event: Event<DataT>): Promise<boolean> {
-    return this.queue(() => {
-      return Promise.resolve(this.matcher(event, this.state)).then(resp => {
-        this._state = Object.freeze(resp.state);
-        return resp.match === true;
-      });
+    return this.queue(async () => {
+      const resp = await this.matcher(event, this.state);
+      this.state = resp.state;
+      return resp.match === true;
     });
   }
 }

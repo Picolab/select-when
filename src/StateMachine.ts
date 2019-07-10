@@ -325,13 +325,13 @@ async function evalExpr<DataT, StateT extends StateShape>(
       }
       return { match: true, state };
     case "not":
-      let m1 = await Promise.resolve(evalExpr(expr.right, event, state));
+      let m1 = await evalExpr(expr.right, event, state);
       return { match: !m1.match, state: m1.state };
     case "or":
-      left = await Promise.resolve(evalExpr(expr.left, event, state));
+      left = await evalExpr(expr.left, event, state);
       return left.match ? left : evalExpr(expr.right, event, left.state);
     case "and":
-      left = await Promise.resolve(evalExpr(expr.left, event, state));
+      left = await evalExpr(expr.left, event, state);
       return left.match
         ? evalExpr(expr.right, event, left.state)
         : { match: false, state: left.state };

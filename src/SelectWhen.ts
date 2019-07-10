@@ -90,7 +90,7 @@ export class SelectWhen<DataT, StateT, WhenReturnT = void> {
       let result = [];
       for (let rule of salientRules) {
         if (await rule.rule.select(event)) {
-          let res = await Promise.resolve(rule.body(event, rule.rule.state));
+          let res = await rule.body(event, rule.rule.state);
           result.push({
             id: rule.id,
             data: res
@@ -99,5 +99,24 @@ export class SelectWhen<DataT, StateT, WhenReturnT = void> {
       }
       return result;
     });
+  }
+
+  getStates(): { [id: string]: StateT | null | undefined } {
+    const states: { [id: string]: StateT | null | undefined } = {};
+    const ids = Object.keys(this.rules);
+    for (const id of ids) {
+      states[id] = this.rules[id].rule.state;
+    }
+    return states;
+  }
+
+  setStates(states: { [id: string]: StateT | null | undefined }): void {
+    const ids = Object.keys(states);
+    for (const id of ids) {
+      const rule = this.rules[id];
+      if (rule) {
+        rule.rule.state = states[id];
+      }
+    }
   }
 }

@@ -229,7 +229,7 @@ test("repeat", function(t) {
 test("within", async function(t) {
   let matcher = within<any, any>(100, before(e("foo"), e("bar"))).matcher;
 
-  let r0 = await Promise.resolve(matcher({ name: "foo", time: 100 }, null));
+  let r0 = await matcher({ name: "foo", time: 100 }, null);
   t.deepEqual(r0, {
     match: false,
     state: { starttime: 100, states: ["s0"] }
