@@ -318,14 +318,15 @@ interface WithinStateShape extends StateShape {
   starttime?: number;
 }
 
-type TimeLimitFn<DataT, StateT extends WithinStateShape> = ((
+type TimeLimitFn<DataT, StateT extends WithinStateShape> = (
   event: Event<DataT>,
   state: StateT | null | undefined
-) => number | Promise<number>);
+) => number | Promise<number>;
 
 export function within<DataT, StateT extends WithinStateShape>(
   timeLimit: number | TimeLimitFn<DataT, StateT>,
-  a: StateMachine<DataT, StateT>
+  a: StateMachine<DataT, StateT>,
+  onTimeout?: () => void
 ): Rule<DataT, StateT> {
   let tlimitFn: TimeLimitFn<DataT, StateT>;
   if (typeof timeLimit === "number" && _.isFinite(timeLimit)) {
@@ -354,6 +355,9 @@ export function within<DataT, StateT extends WithinStateShape>(
     if (timeSinceLast > tlimit) {
       // time has expired, reset the state machine
       stmStates = ["start"];
+      if (onTimeout) {
+        onTimeout();
+      }
     }
     if (_.includes(stmStates, "start")) {
       // set or reset the clock
