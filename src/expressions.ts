@@ -326,7 +326,7 @@ type TimeLimitFn<DataT, StateT extends WithinStateShape> = (
 export function within<DataT, StateT extends WithinStateShape>(
   timeLimit: number | TimeLimitFn<DataT, StateT>,
   a: StateMachine<DataT, StateT>,
-  onTimeout?: () => void
+  onTimeout?: (event: Event<DataT>, state: StateT | null | undefined) => StateT
 ): Rule<DataT, StateT> {
   let tlimitFn: TimeLimitFn<DataT, StateT>;
   if (typeof timeLimit === "number" && _.isFinite(timeLimit)) {
@@ -356,7 +356,7 @@ export function within<DataT, StateT extends WithinStateShape>(
       // time has expired, reset the state machine
       stmStates = ["start"];
       if (onTimeout) {
-        onTimeout();
+        state = onTimeout(event, state);
       }
     }
     if (_.includes(stmStates, "start")) {
