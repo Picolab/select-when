@@ -55,5 +55,5 @@ export default function cleanEvent<DataT>(eventIn: any): Event<DataT> {
     event.time = eventIn.time;
   }
 
-  return Object.freeze(event);
+  return Object.freeze(Object.assign({}, eventIn, event));
 }

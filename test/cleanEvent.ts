@@ -26,8 +26,9 @@ test("clean event", function(t) {
       domain: "foo",
       name: "bar",
       data: null,
+      extra: "thing",
       time: 123
-    }
+    } as any
   );
 
   let event = cleanEvent<any>("a");

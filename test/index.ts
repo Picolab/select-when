@@ -34,7 +34,7 @@ test("basics", async function(t) {
 
   await rs.send("aa");
   await rs.send("bb:cc");
-  await rs.send({ name: "dd", data: { attr: 1 }, foo: "bar" });
+  await rs.send({ name: "dd", data: { attr: 1 }, eci: "bar" });
 
   t.deepEqual(w0.rule.state, { n: 3 });
 
@@ -44,7 +44,7 @@ test("basics", async function(t) {
   t.deepEqual(matches, [
     [{ domain: null, name: "aa", data: null }, { n: 1 }],
     [{ domain: "bb", name: "cc", data: null }, { n: 2 }],
-    [{ domain: null, name: "dd", data: { attr: 1 } }, { n: 3 }],
+    [{ domain: null, name: "dd", data: { attr: 1 }, eci: "bar" }, { n: 3 }],
     [{ domain: null, name: "ee", data: null }, { n: 101 }]
   ]);
 });
