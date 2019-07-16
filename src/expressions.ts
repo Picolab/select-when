@@ -1,7 +1,7 @@
 import * as _ from "lodash";
 import { StateMachine } from "./StateMachine";
 import { Rule } from "./Rule";
-import { Event, MatcherFn, TransitionEvent, StateShape } from "./types";
+import { Event, MatcherFn, TransitionEvent, StateShape, Async } from "./types";
 
 function wrapInOr<DataT, StateT>(
   states: TransitionEvent<DataT, StateT>[]
@@ -321,7 +321,7 @@ interface WithinStateShape extends StateShape {
 type TimeLimitFn<DataT, StateT extends WithinStateShape> = (
   event: Event<DataT>,
   state: StateT | null | undefined
-) => number | Promise<number>;
+) => Async<number>;
 
 export function within<DataT, StateT extends WithinStateShape>(
   timeLimit: number | TimeLimitFn<DataT, StateT>,

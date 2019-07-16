@@ -16,10 +16,12 @@ export interface MatcherRet<StateT> {
   state: StateT | undefined | null;
 }
 
+export type Async<T> = T | Promise<T>;
+
 export type MatcherFn<DataT, StateT> = (
   event: Event<DataT>,
   state: StateT | undefined | null
-) => MatcherRet<StateT> | Promise<MatcherRet<StateT>>;
+) => Async<MatcherRet<StateT>>;
 
 export interface EventPattern<DataT, StateT> {
   domain: string;

@@ -3,12 +3,13 @@ import cleanEvent from "./cleanEvent";
 import { StateMachine } from "./StateMachine";
 import { Rule } from "./Rule";
 import { PromiseSeries } from "./PromiseSeries";
-import { Event, Saliance } from "./types";
+import { Event, Saliance, Async } from "./types";
 
 export type WhenBody<DataT, StateT, WhenReturnT> = (
   event: Event<DataT>,
-  state: StateT | null | undefined
-) => WhenReturnT | Promise<WhenReturnT>;
+  state: StateT | null | undefined,
+  last: () => void
+) => Async<WhenReturnT>;
 
 export interface When<DataT, StateT, WhenReturnT> {
   readonly id: string;
@@ -90,11 +91,19 @@ export class SelectWhen<DataT, StateT, WhenReturnT = void> {
       let result = [];
       for (let rule of salientRules) {
         if (await rule.rule.select(event)) {
-          let res = await rule.body(event, rule.rule.state);
+          let last = false;
+          let res = await rule.body(
+            event,
+            rule.rule.state,
+            () => (last = true)
+          );
           result.push({
             id: rule.id,
             data: res
           });
+          if (last) {
+            break;
+          }
         }
       }
       return result;
