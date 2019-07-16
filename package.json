@@ -1,6 +1,6 @@
 {
   "name": "select-when",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "nodejs library to create expressions that pattern match over an event stream",
   "repository": {
     "type": "git",
