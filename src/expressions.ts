@@ -59,111 +59,128 @@ export function e<DataT, StateT>(
   return s;
 }
 
-export function or<DataT, StateT>(
-  a: StateMachine<DataT, StateT>,
-  b: StateMachine<DataT, StateT>
-) {
+export function or<DataT, StateT>(...args: StateMachine<DataT, StateT>[]) {
   let s = new StateMachine<DataT, StateT>();
 
-  s.concat(a);
-  s.concat(b);
-  s.join(a.start, s.start);
-  s.join(b.start, s.start);
-  s.join(a.end, s.end);
-  s.join(b.end, s.end);
+  _.each(args, function(a) {
+    s.concat(a);
+    s.join(a.start, s.start);
+    s.join(a.end, s.end);
+  });
 
   s.optimize();
   return s;
 }
 
-export function and<DataT, StateT>(
-  a0: StateMachine<DataT, StateT>,
-  b0: StateMachine<DataT, StateT>
-) {
+export function and<DataT, StateT>(...args: StateMachine<DataT, StateT>[]) {
   let s = new StateMachine<DataT, StateT>();
 
-  let a1 = a0.clone();
-  let b1 = b0.clone();
-  s.concat(a0);
-  s.concat(b0);
-  s.concat(a1);
-  s.concat(b1);
-
-  s.join(a0.start, s.start);
-  s.join(b0.start, s.start);
-
-  s.join(a0.end, b1.start);
-  s.join(b0.end, a1.start);
-
-  s.join(a1.end, s.end);
-  s.join(b1.end, s.end);
-
-  s.optimize();
-  return s;
-}
-
-export function before<DataT, StateT>(
-  a: StateMachine<DataT, StateT>,
-  b: StateMachine<DataT, StateT>
-) {
-  let s = new StateMachine<DataT, StateT>();
-
-  s.concat(a);
-  s.join(a.start, s.start);
-
-  s.concat(b);
-  s.join(b.end, s.end);
-  s.join(a.end, b.start);
-
-  s.optimize();
-  return s;
-}
-
-export function then<DataT, StateT>(
-  a: StateMachine<DataT, StateT>,
-  b: StateMachine<DataT, StateT>
-) {
-  let s = new StateMachine<DataT, StateT>();
-
-  s.concat(a);
-  s.concat(b);
-
-  s.join(a.start, s.start);
-  s.join(a.end, b.start);
-  s.join(b.end, s.end);
-
-  let transitions = s.getTransitions();
-  let bTEvents = _(transitions)
-    .map(
-      (t): TransitionEvent<DataT, StateT> | undefined => {
-        if (t.from === b.start) {
-          return { kind: "not", right: t.on };
-        }
+  _.each(permute(_.range(0, _.size(args))), function(indices) {
+    let prev: StateMachine<DataT, StateT> | null = null;
+    _.each(indices, function(i, j) {
+      const a = args[i].clone();
+      s.concat(a);
+      if (j === 0) {
+        s.join(a.start, s.start);
       }
-    )
-    .compact()
-    .uniqWith(_.isEqual)
-    .value();
-  let notB = wrapInOr(bTEvents);
-
-  s.add(b.start, notB, s.start);
+      if (j === _.size(indices) - 1) {
+        s.join(a.end, s.end);
+      }
+      if (prev) {
+        s.join(prev.end, a.start);
+      }
+      prev = a;
+    });
+  });
 
   s.optimize();
   return s;
 }
 
-export function after<DataT, StateT>(
-  a: StateMachine<DataT, StateT>,
-  b: StateMachine<DataT, StateT>
-) {
+export function before<DataT, StateT>(...args: StateMachine<DataT, StateT>[]) {
   let s = new StateMachine<DataT, StateT>();
 
-  s.concat(a);
-  s.concat(b);
+  let prev: StateMachine<DataT, StateT> | null = null;
+  _.each(args, function(arg, j) {
+    var a = arg.clone();
+    s.concat(a);
+    if (j === 0) {
+      s.join(a.start, s.start);
+    }
+    if (j === _.size(args) - 1) {
+      s.join(a.end, s.end);
+    }
+    if (prev) {
+      s.join(prev.end, a.start);
+    }
+    prev = a;
+  });
 
-  s.join(b.start, s.start);
-  s.join(a.end, s.end);
-  s.join(b.end, a.start);
+  s.optimize();
+  return s;
+}
+
+export function then<DataT, StateT>(...args: StateMachine<DataT, StateT>[]) {
+  let s = new StateMachine<DataT, StateT>();
+
+  var mergePoints: string[] = [];
+  var prev: StateMachine<DataT, StateT> | undefined;
+  _.each(args, function(a, j) {
+    s.concat(a);
+    if (j === 0) {
+      s.join(a.start, s.start);
+    }
+    if (j === _.size(args) - 1) {
+      s.join(a.end, s.end);
+    }
+    if (prev) {
+      s.join(prev.end, a.start);
+      mergePoints.push(a.start);
+    }
+    prev = a;
+  });
+
+  var transitions = s.getTransitions();
+  _.each(mergePoints, function(daState) {
+    // if not daState return to start
+    let bTEvents = _(transitions)
+      .map(
+        (t): TransitionEvent<DataT, StateT> | undefined => {
+          if (t.from === daState) {
+            return { kind: "not", right: t.on };
+          }
+        }
+      )
+      .compact()
+      .uniqWith(_.isEqual)
+      .value();
+    let notB = wrapInOr(bTEvents);
+
+    s.add(daState, notB, s.start);
+  });
+
+  s.optimize();
+  return s;
+}
+
+export function after<DataT, StateT>(...args: StateMachine<DataT, StateT>[]) {
+  let s = new StateMachine<DataT, StateT>();
+
+  let prev: StateMachine<DataT, StateT> | undefined;
+  _.each(_.range(_.size(args) - 1, -1), function(i, j) {
+    let a = args[i].clone();
+    s.concat(a);
+    if (j === 0) {
+      s.join(a.start, s.start);
+    }
+    if (j === _.size(args) - 1) {
+      s.join(a.end, s.end);
+    }
+    if (prev) {
+      s.join(prev.end, a.start);
+    }
+    prev = a;
+  });
 
   s.optimize();
   return s;

@@ -138,6 +138,21 @@ test("and", function(t) {
     s0: [["*:bbb", "end"]],
     s1: [["*:aaa", "end"]]
   });
+
+  stm = and(e("aaa"), e("bbb"), e("ccc"));
+
+  t.deepEqual(stm.compile(), {
+    start: [["*:aaa", "s0"], ["*:bbb", "s1"], ["*:ccc", "s4"]],
+    s0: [["*:bbb", "s7"], ["*:ccc", "s8"]],
+    s1: [["*:aaa", "s2"], ["*:ccc", "s3"]],
+    s2: [["*:ccc", "end"]],
+    s3: [["*:aaa", "end"]],
+    s4: [["*:aaa", "s5"], ["*:bbb", "s6"]],
+    s5: [["*:bbb", "end"]],
+    s6: [["*:aaa", "end"]],
+    s7: [["*:ccc", "end"]],
+    s8: [["*:bbb", "end"]]
+  });
 });
 
 test("then", async function(t) {
