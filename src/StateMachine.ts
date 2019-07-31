@@ -155,8 +155,15 @@ export class StateMachine<DataT, StateT> {
         if (
           this.getStateInputSignature(sA) === this.getStateInputSignature(sB)
         ) {
-          this.join(sA, sB);
-          didJoinStuff = true;
+          if (
+            (sA === this.start && sB === this.end) ||
+            (sA === this.end && sB === this.start)
+          ) {
+            // can't join start and end
+          } else {
+            this.join(sA, sB);
+            didJoinStuff = true;
+          }
         }
       });
       if (!didJoinStuff) {

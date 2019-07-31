@@ -205,6 +205,14 @@ test("notBetween", function(t) {
     start: [["*:bbb", "s0"]],
     s0: [["*:aaa", "start"], ["*:ccc", "end"]]
   });
+
+  // duplicate path aaa
+  stm = notBetween(e("aaa"), e("bbb"), e("aaa"));
+
+  t.deepEqual(stm.compile(), {
+    start: [["*:bbb", "s0"]],
+    s0: [["*:aaa", "start"], ["*:aaa", "end"]]
+  });
 });
 
 test("any", function(t) {
