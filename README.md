@@ -1,7 +1,5 @@
 # select-when
 
-[![Build Status](https://travis-ci.org/Picolab/select-when.svg)](https://travis-ci.org/Picolab/select-when)
-
 This javascript library makes it _easy_ to create rules that **pattern match** on event streams.
 
 - [Rationale](#rationale)
