@@ -10,7 +10,7 @@ jobs:
       matrix:
         node-version:
           - lts/*
-          - *
+          - "*"
         os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
