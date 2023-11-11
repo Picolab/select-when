@@ -366,7 +366,7 @@ export function within<DataT, StateT extends WithinStateShape>(
     let tlimit = await tlimitFn(event, state);
 
     let stmStates = _.filter(
-      _.flattenDeep([state && state.states]),
+      _.flattenDeep<string | null | undefined>([state && state.states]),
       _.isString
     );
     if (timeSinceLast > tlimit) {

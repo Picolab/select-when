@@ -7,8 +7,7 @@ import {
   TransitionCompact,
   TransitionEvent_event,
   TransitionEvent,
-  Saliance,
-  StateShape
+  Saliance
 } from "./types";
 
 function genState() {
@@ -268,13 +267,13 @@ export class StateMachine<DataT, StateT> {
   }
 }
 
-async function stmMatcher<DataT, StateT extends StateShape>(
+async function stmMatcher<DataT, StateT>(
   stm: CompiledStateMachine,
   event: Event<DataT>,
   state: StateT | null | undefined
 ): Promise<MatcherRet<StateT>> {
   let stateStates: string[] =
-    state && _.isArray(state.states) ? state.states : [];
+    state && _.isArray((state as any).states) ? (state as any).states : [];
   let stmStates = stateStates.filter(st => _.has(stm, st));
 
   if (stmStates.length === 0) {
@@ -313,7 +312,7 @@ async function stmMatcher<DataT, StateT extends StateShape>(
   };
 }
 
-async function evalExpr<DataT, StateT extends StateShape>(
+async function evalExpr<DataT, StateT>(
   expr: TransitionEvent<DataT, StateT>,
   event: Event<DataT>,
   state: StateT | null | undefined
