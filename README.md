@@ -1,6 +1,6 @@
 # select-when
 
-[![Build Status](https://travis-ci.org/Picolab/select-when.svg)](https://travis-ci.org/Picolab/select-when)
+[![Build Status](https://github.com/Picolab/select-when/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/Picolab/select-when/actions/workflows/test.yml)
 
 This javascript library makes it _easy_ to create rules that **pattern match** on event streams.
 
